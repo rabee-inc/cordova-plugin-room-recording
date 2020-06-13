@@ -1,0 +1,36 @@
+{
+  "name": "cordova-plugin-room-recording",
+  "version": "0.0.2",
+  "description": "cordova-plugin-room-recording",
+  "cordova" : {
+    "id": "cordova-plugin-room-recording",
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/snuffy/cordova-plugin-room-recording.git"
+  },
+  "author": "snuffy",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/snuffy/cordova-plugin-room-recording/issues"
+  },
+  "dependencies": {
+    "xml2js": "^0.4.19"
+  },
+  "homepage": "https://github.com/snuffy/cordova-plugin-room-recording#readme",
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-ios",
+    "cordova-android",
+    "cordova:plugin",
+    "plugin"
+  ]
+}

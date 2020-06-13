@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="cordova-plugin-room-recording" version="0.0.2">
+  <name>Cordova Plugin Room Recording</name>
+  <description>room recording</description>
+	<engines>
+		<engine name="cordova-android" version=">=7.1.0" />
+	</engines>
+  <js-module src="www/RoomRecording.js" name='RoomRecording' >
+    <clobbers target="RoomRecording" />
+  </js-module>
+  <!-- iOS -->
+  <platform name="ios">
+    <config-file target="config.xml" parent="/*">
+      <feature name="RoomRecording">
+        <param name="onload" value="true" />
+        <param name="ios-package" value="CDVRoomRecording" />
+      </feature>
+
+      <preference name="deployment-target" value="10.0" />
+    </config-file>
+
+    <source-file src="src/ios/CDVRoomRecording.swift" />
+    <source-file src="src/ios/CDVRoomRecording-Bridging-Header.h" />
+
+    <!-- ios -->
+    <podspec>
+      <config>
+        <source url="https://github.com/CocoaPods/Specs.git"/>
+      </config>
+      <pods use-frameworks="true">
+        <pod name="AgoraRtcEngine_iOS" spec="~> 3.0.1" />
+      </pods>
+    </podspec>
+    <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
+    <preference name="UseSwiftLanguageVersion" default="4" />
+  </platform>
+</plugin>
