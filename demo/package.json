@@ -16,14 +16,5 @@
         "ecosystem:cordova"
     ],
     "author": "Apache Cordova Team",
-    "license": "Apache-2.0",
-    "dependencies": {
-        "cordova-ios": "^5.1.0-nightly.2019.11.10.9964c74b",
-        "cordova-plugin-room-recording": "file:.."
-    },
-    "cordova": {
-        "platforms": [
-            "ios"
-        ]
-    }
+    "license": "Apache-2.0"
 }
