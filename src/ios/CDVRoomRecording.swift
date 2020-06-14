@@ -7,6 +7,7 @@ import AgoraRtcKit
     var pushCallbackId: String?
     var speakerStatusChangeCallbackIds: [String] = []
     var stopRecordingCallbackId: String?
+    var pauseRecordingCallbackId: String?
     var commpressProgressCallBackId: String?
     var completeCompressionCallbackId: String?
     var completeSplitCallbackId: String?
@@ -16,7 +17,7 @@ import AgoraRtcKit
     var RECORDING_DIR = ""
     
     // エラーコード定義
-    enum CDVErrorCode: String {
+    enum CDVRoomRecordingErrorCode: String {
         case permissionError = "permission_error"
         case argumentError = "argument_error"
         case folderManipulationError = "folder_manipulation_error"
@@ -26,6 +27,14 @@ import AgoraRtcKit
             return ["code": self.rawValue, "message": message]
         }
     }
+    
+    enum CDVRoomRecordingPlayerFrom {
+        case start
+        case stop
+        case pause
+        case resume
+    }
+    
 
     //
     override func pluginInitialize() {
@@ -67,7 +76,7 @@ import AgoraRtcKit
         audioSession.requestRecordPermission {[weak self] granted in
             guard let self = self else { return }
             if !granted {
-                let message = CDVErrorCode.permissionError.toDictionary(message: "deny permission")
+                let message = CDVRoomRecordingErrorCode.permissionError.toDictionary(message: "deny permission")
                 let result = CDVPluginResult(
                     status: CDVCommandStatus_ERROR,
                     messageAs:message
@@ -110,26 +119,82 @@ import AgoraRtcKit
         commandDelegate.send(result, callbackId: command.callbackId)
     }
     
+    // 再開
     @objc func startRecording(_ command: CDVInvokedUrlCommand) {
-        let result = CDVPluginResult(status: CDVCommandStatus_OK)
-        commandDelegate.send(result, callbackId: command.callbackId)
+        // 録音中ならスタートしない
+        if (isRecording) {
+            let r = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: "have already started")
+            commandDelegate.send(r, callbackId: command.callbackId)
+            return
+        }
+        // すでに録音されていれば、削除して、録音開始
+        let recordedURL = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
+        if FileManager.default.fileExists(atPath: recordedURL.absoluteString) {
+            do {
+                try FileManager.default.removeItem(at: recordedURL)
+            }
+            catch let error {
+                let e = CDVRoomRecordingErrorCode.folderManipulationError.toDictionary(message: error.localizedDescription)
+                let r = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: e)
+                commandDelegate.send(r, callbackId: command.callbackId)
+                return;
+            }
+        }
+        
         isRecording = true
         agoraKit.startAudioRecording(RECORDING_DIR + "/temp.wav", sampleRate: 44100, quality: .high)
         
+        let result = CDVPluginResult(status: CDVCommandStatus_OK)
+         commandDelegate.send(result, callbackId: command.callbackId)
+    }
+    //　一時停止
+    @objc func pauseRecording(_ command: CDVInvokedUrlCommand) {
+        pauseRecordingCallbackId = command.callbackId
+        // 録音していなければエラー
+        if (!isRecording) {
+            let r = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: "not recording yet")
+            commandDelegate.send(r, callbackId: command.callbackId)
+            return
+        }
+        
+        // stop するだけ
+        isRecording = false
+        agoraKit.stopAudioRecording();
+        // 音声のマージ
+        mergeRecording(from: CDVRoomRecordingPlayerFrom.pause)
     }
     
-    // 圧縮完了
-    private func completeCompression() {
-        print("---------------------------------------------------------> compression complete")
-        if let callbackId = completeCompressionCallbackId {
-            let path = URL(fileURLWithPath: RECORDING_DIR + "/recorded.m4a")
-            let data = [
-                "absolute_path": path.absoluteString
-            ] as [String:Any]
-            let r = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
-            commandDelegate.send(r, callbackId: callbackId)
+    // 再開
+    @objc func resumeRecording(_ command: CDVInvokedUrlCommand) {
+        
+        // 録音中ならスタートしない
+        if (isRecording) {
+            let r = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: "have already started")
+            commandDelegate.send(r, callbackId: command.callbackId)
+            return
         }
+        isRecording = true
+        agoraKit.startAudioRecording(RECORDING_DIR + "/temp.wav", sampleRate: 44100, quality: .high)
+        let result = CDVPluginResult(status: CDVCommandStatus_OK)
+        commandDelegate.send(result, callbackId: command.callbackId)
     }
+    
+    // 終了
+    @objc func stopRecording(_ command: CDVInvokedUrlCommand) {
+        stopRecordingCallbackId = command.callbackId
+        // 録音していなければエラー
+        if (!isRecording) {
+            let r = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: "not recording yet")
+            commandDelegate.send(r, callbackId: command.callbackId)
+            return
+        }
+        
+        isRecording = false
+        agoraKit.stopAudioRecording()
+        // 音声をマージする
+        mergeRecording(from: CDVRoomRecordingPlayerFrom.stop)
+    }
+    
     // 圧縮して出力
     @objc func exportWithCompression(_ command: CDVInvokedUrlCommand) {
         completeCompressionCallbackId = command.callbackId
@@ -189,6 +254,19 @@ import AgoraRtcKit
         }
     }
     
+    // 圧縮完了
+    private func completeCompression() {
+        print("---------------------------------------------------------> compression complete")
+        if let callbackId = completeCompressionCallbackId {
+            let path = URL(fileURLWithPath: RECORDING_DIR + "/recorded.m4a")
+            let data = [
+                "absolute_path": path.absoluteString
+            ] as [String:Any]
+            let r = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+            commandDelegate.send(r, callbackId: callbackId)
+        }
+    }
+    
     // 未圧縮ファイルを export する
     @objc func export(_ command: CDVInvokedUrlCommand) {
         let path = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
@@ -200,7 +278,7 @@ import AgoraRtcKit
     }
     
     // それまで録音されていた音声と、今回録音された音声をマージする
-    private func mergeRecording() {
+    private func mergeRecording(from: CDVRoomRecordingPlayerFrom) {
         
         let tempURL = URL(fileURLWithPath: RECORDING_DIR + "/temp.wav")
         if FileManager.default.fileExists(atPath: RECORDING_DIR + "/recorded.wav") {
@@ -232,7 +310,7 @@ import AgoraRtcKit
                     do {
                         try FileManager.default.removeItem(at: recordedURL)
                         try FileManager.default.moveItem(atPath: self.RECORDING_DIR + "/concat.wav", toPath: self.RECORDING_DIR + "/recorded.wav")
-                        self.mergeComplete()
+                        self.mergeComplete(from: from)
                     }
                     catch {
                         
@@ -245,27 +323,42 @@ import AgoraRtcKit
         else {
             do {
                 try FileManager.default.moveItem(atPath: RECORDING_DIR + "/temp.wav", toPath: RECORDING_DIR + "/recorded.wav")
-                mergeComplete()
+                mergeComplete(from: from)
             } catch let error {
                 return print(error)
             }
         }
     }
     // マージが完了する
-    private func mergeComplete() {
+    private func mergeComplete(from: CDVRoomRecordingPlayerFrom) {
         print("merge complete")
-        if (stopRecordingCallbackId != nil) {
+        
+        var callbackId: String?
+        
+        switch from {
+        case .pause:
+            if pauseRecordingCallbackId != nil {
+                callbackId = pauseRecordingCallbackId
+            }
+            break
+        case .stop:
+            if stopRecordingCallbackId != nil {
+                callbackId = stopRecordingCallbackId
+            }
+            break
+        case .start:
+            break
+        case .resume:
+            break
+        }
+        
+        
+        if callbackId != nil {
             let result = CDVPluginResult(status: CDVCommandStatus_OK)
             commandDelegate.send(result, callbackId: stopRecordingCallbackId)
         }
     }
-    // h
-    @objc func stopRecording(_ command: CDVInvokedUrlCommand) {
-        agoraKit.stopAudioRecording()
-        isRecording = false
-        stopRecordingCallbackId = command.callbackId
-        mergeRecording()
-    }
+
     
     // 分割完了
     private func completeSplit() {

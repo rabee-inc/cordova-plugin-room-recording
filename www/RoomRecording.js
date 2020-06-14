@@ -24,11 +24,15 @@ const createAction = (action, params) => {
 // 本体 -> これを利用したもう一つ大きなクラスを作って 体裁を整える
 const RoomRecording = {
     initialize: (params) => createAction('initialize', params),
-    getMicPermission: (parms) => createAction('getMicPermission', params),
+    getMicPermission: (params) => createAction('getMicPermission', params),
+    // for room
     createRoom: (params) => createAction('joinRoom', params),
     joinRoom: (params) => createAction('joinRoom', params),
     leaveRoom: (params) => createAction('leaveRoom', params),
+    // for recording
     startRecording: (params) => createAction('startRecording', params),
+    pauseRecording: (params) => createAction('pauseRecording', params),
+    resumeRecording: (params) => createAction('resume', params),
     stopRecording: (params) => createAction('stopRecording', params),
     split: (params) => createAction('split', params),
     export: (params) => createAction('export', params),
