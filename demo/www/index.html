@@ -35,11 +35,28 @@
         <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
         <meta name="color-scheme" content="light dark">
         <link rel="stylesheet" href="css/index.css">
-        <title>Hello World</title>
+        <title>recording</title>
     </head>
     <body>
-        <button class='start'>start awake</button>
-        <button class='stop'>stop awake</button>
+
+        <h1>Room Recording Plugin</h1>
+        <div>
+            <button class='createRoomBtn'>ルーム作成</button>
+            <button class='joinRoomBtn'>ルーム参加</button>
+            <button class='leaveRoomBtn'>ルームから出る</button>
+        </div>
+        <div>
+            <button class='recordingStartBtn'>レコーディング開始</button>
+            <button class='recordingStopBtn'>レコーディング停止</button>
+        </div>
+        
+        <div>
+            <button class='exportAudioBtn'>出力</button>
+            <button class='exportWithCompressionBtn'>圧縮出力</button>
+            <button class='splitBtn'>分割</button>
+        </div>
+
+
         <script src="cordova.js"></script>
         <script src="js/index.js"></script>
     </body>

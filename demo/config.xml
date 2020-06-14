@@ -21,5 +21,9 @@
     <platform name="ios">
         <allow-intent href="itms:*" />
         <allow-intent href="itms-apps:*" />
+        <edit-config file="*-Info.plist" mode="merge" target="NSMicrophoneUsageDescription">
+            <string>room recording がマイクのアクセスを必要としています</string>
+        </edit-config>
     </platform>
+    <preference name="agora-app-id" value="sample-id" />
 </widget>

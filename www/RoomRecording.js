@@ -23,13 +23,45 @@ const createAction = (action, params) => {
 
 // 本体 -> これを利用したもう一つ大きなクラスを作って 体裁を整える
 const RoomRecording = {
-    // セットアップ
-    initialize: (params) => createAction('start', params),
-    createRoom: (params) => createAction('createRoom', params),
+    initialize: (params) => createAction('initialize', params),
+    getMicPermission: (parms) => createAction('getMicPermission', params),
+    createRoom: (params) => createAction('joinRoom', params),
     joinRoom: (params) => createAction('joinRoom', params),
+    leaveRoom: (params) => createAction('leaveRoom', params),
     startRecording: (params) => createAction('startRecording', params),
     stopRecording: (params) => createAction('stopRecording', params),
-    split: (params) => createAction('stopRecording', params),
+    split: (params) => createAction('split', params),
+    export: (params) => createAction('export', params),
+    exportWithCompression: (params) => createAction('exportWithCompression', params),
+    // 登録関係
+    on: (type, callback, id) => {
+      // type === progress | complete | failed;
+      let actionType = '';
+      switch(type) {
+          case 'changeSpeakersStatus': 
+              actionType = 'setOnChangeSpeakersStatus';
+              break;
+          case 'pushVolume':
+              actionType = 'setOnPushVolumeCallback'
+              break;
+          default: 
+              break;
+      }
+      if (!actionType) return console.warn('please set action type');
+      exec(
+          (data) => {
+              // 成功
+              if (typeof callback === 'function') {
+                  callback(data)
+              }
+          },
+          (error) => {
+              // 失敗
+              // TODO: error handling
+              console.log(error, 'error')
+          },'RoomRecording', actionType, [{id}]
+      );
+  },
 }
 
 

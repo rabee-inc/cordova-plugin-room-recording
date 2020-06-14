@@ -1,42 +1,112 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
-// Wait for the deviceready event before using any of Cordova's device APIs.
-// See https://cordova.apache.org/docs/en/latest/cordova/events/events.html#deviceready
 document.addEventListener('deviceready', onDeviceReady, false);
 function onDeviceReady() {   
-    // button
-    const startBtn = document.querySelector('.start') 
-    startBtn.addEventListener('click', start);
+    initialize();
 
-    const stopBtn = document.querySelector('.stop') 
-    stopBtn.addEventListener('click', stop);
-}
-    
-function start() {
-    window.KeepAwake.start().then((v) => {
-        window.alert('start awake');
-    })
+
+    // ルーム作成
+    const createRoomBtn = document.querySelector('.createRoomBtn') 
+    createRoomBtn.addEventListener('click', createRoom);
+
+    // ルーム参加
+    const joinRoomBtn = document.querySelector('.joinRoomBtn') 
+    joinRoomBtn.addEventListener('click', joinRoom);
+
+    // ルーム退出
+    const leaveRoomBtn = document.querySelector('.leaveRoomBtn') 
+    leaveRoomBtn.addEventListener('click', leaveRoom);
+
+    // レコーディング開始
+    const recordingStartBtn = document.querySelector('.recordingStartBtn') 
+    recordingStartBtn.addEventListener('click', startRecording);
+
+    // レコーディングストップ
+    const recordingStopBtn = document.querySelector('.recordingStopBtn') 
+    recordingStopBtn.addEventListener('click', stopRecording);
+
+    // export 
+    const exportAudioBtn = document.querySelector('.exportAudioBtn');
+    exportAudioBtn.addEventListener('click', exportAudio);
+
+    // export with compression
+    const exportWithCompressionBtn = document.querySelector('.exportWithCompressionBtn') 
+    exportWithCompressionBtn.addEventListener('click', exportWithCompression);
+
+    // split 
+    const splitBtn = document.querySelector('.splitBtn') 
+    splitBtn.addEventListener('click', split);
+
+    // 音が入ってきたら
+    RoomRecording.on('pushVolume', (data) => {
+        const {total_volume, speakers} = data;
+        console.log(total_volume, speakers.length, speakers);
+    });
+    // 人が入ってきたら
+    RoomRecording.on('changeSpeakersStatus', (data) => {
+        console.log(data);
+    });
 }
 
-function stop() {
-    window.KeepAwake.stop().then((v) => {
-        window.alert('stop awake');
+// 初期化
+function initialize() {
+    RoomRecording.initialize().then(() => {
+        window.alert('initialized!');
+        RoomRecording.getMicPermission();
+    });
+}
+// ルームを作成する
+function createRoom () {
+    // const roomId = window.prompt("作成するルームidを入力してください");
+    const roomId = "aaa"
+    RoomRecording.joinRoom({room_id: roomId}).then(() => {
+        window.alert('ルームを作成しました');
+    });
+}
+// ルームに入室する
+function joinRoom () {
+    // const roomId = window.prompt("参加するルームidを入力してください");
+    const roomId = "aaa"
+    RoomRecording.joinRoom({room_id: roomId}).then(() => {
+        window.alert('ルームに入室しました');
+    });
+}
+// ルームから退出する
+function leaveRoom() {
+    RoomRecording.leaveRoom().then(() => {
+        window.alert('ルームから退出しました');
+    });
+}
+
+// レコーディングスタート
+function startRecording() {
+    RoomRecording.startRecording().then((v) => {
+        window.alert('レコーディングを開始しました');
+    });
+}
+// レコーディングストップ中
+function stopRecording() {
+    RoomRecording.stopRecording().then((v) => {
+        window.alert('レコーディングを終了しましたしました');
+    });
+}
+
+function exportAudio() {
+    RoomRecording.export().then((v) => {
+        console.log(JSON.stringify(v))
+        window.alert('エクスポートしました');
+    });
+}
+
+function exportWithCompression() {
+    RoomRecording.exportWithCompression().then((v) => {
+        console.log(JSON.stringify(v));
+        window.alert('圧縮エクスポートしました');
+    });
+}
+
+function split() {
+    const seconds = 2.0;
+    RoomRecording.split(seconds).then((v) => {
+        console.log(JSON.stringify(v));
+        window.alert(seconds + "で分割しました");
     });
 }
