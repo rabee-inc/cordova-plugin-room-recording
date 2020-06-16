@@ -32,11 +32,17 @@ const RoomRecording = {
     // for recording
     startRecording: (params) => createAction('startRecording', params),
     pauseRecording: (params) => createAction('pauseRecording', params),
-    resumeRecording: (params) => createAction('resume', params),
+    resumeRecording: (params) => createAction('resumeRecording', params),
     stopRecording: (params) => createAction('stopRecording', params),
     split: (params) => createAction('split', params),
     export: (params) => createAction('export', params),
     exportWithCompression: (params) => createAction('exportWithCompression', params),
+    // mic 操作
+    setMicEnable: (params) => createAction('setMicEnable', params),
+    toggleMic: () => createAction('toggleMicEnable', params),
+    // speaker 操作
+    setSpeakerEnable: (params) => createAction('setSpeakerEnable', params),
+    toggleSpeakerEnable: () => createAction('toggleSpeakerEnable', params),
     // 登録関係
     on: (type, callback, id) => {
       // type === progress | complete | failed;

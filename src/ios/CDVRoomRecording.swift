@@ -11,10 +11,14 @@ import AgoraRtcKit
     var commpressProgressCallBackId: String?
     var completeCompressionCallbackId: String?
     var completeSplitCallbackId: String?
+    var speakerOfflineCallbackIds: [String] = []
     
+    var micEnable = true
     var speakerEnable = true
     var isRecording = true
     var RECORDING_DIR = ""
+
+    
     
     // エラーコード定義
     enum CDVRoomRecordingErrorCode: String {
@@ -44,7 +48,7 @@ import AgoraRtcKit
         
         // コラボレコーディングのパス
         RECORDING_DIR = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first! + "/colloboRecording"
-        speakerStatusChangeCallbackIds = []
+        
         
         let audioSession = AVAudioSession.sharedInstance()
         audioSession.requestRecordPermission {[weak self] granted in }
@@ -63,6 +67,8 @@ import AgoraRtcKit
         catch let error {
             print(error)
         }
+        speakerOfflineCallbackIds = []
+        speakerStatusChangeCallbackIds = []
     };
 
     @objc func initialize(_ command: CDVInvokedUrlCommand) {
@@ -97,7 +103,6 @@ import AgoraRtcKit
         // audio Profile
         agoraKit.setAudioProfile(.musicHighQualityStereo, scenario: .education)
         agoraKit.enableAudioVolumeIndication(50, smooth: 10, report_vad: true)
-        
         // uid は agora の user id を示している
         // 0 の場合は、success callback に uid が発行されて帰ってくる
         agoraKit.joinChannel(byToken: nil, channelId: roomId, info: nil, uid: 0, joinSuccess: { [weak self] (id, uid, elapsed) in
@@ -129,7 +134,7 @@ import AgoraRtcKit
         }
         // すでに録音されていれば、削除して、録音開始
         let recordedURL = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
-        if FileManager.default.fileExists(atPath: recordedURL.absoluteString) {
+        if FileManager.default.fileExists(atPath: RECORDING_DIR + "/recorded.wav") {
             do {
                 try FileManager.default.removeItem(at: recordedURL)
             }
@@ -355,7 +360,7 @@ import AgoraRtcKit
         
         if callbackId != nil {
             let result = CDVPluginResult(status: CDVCommandStatus_OK)
-            commandDelegate.send(result, callbackId: stopRecordingCallbackId)
+            commandDelegate.send(result, callbackId: callbackId)
         }
     }
 
@@ -449,7 +454,6 @@ import AgoraRtcKit
         let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: ["speakerEnable": speakerEnable])
         commandDelegate.send(result, callbackId: command.callbackId)
     }
-    
     // スピーカー on / off のトグル
     @objc func toggleSpeakerEnable(_ command: CDVInvokedUrlCommand) {
         speakerEnable = !speakerEnable
@@ -458,10 +462,38 @@ import AgoraRtcKit
         let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: ["speakerEnable": speakerEnable])
         commandDelegate.send(result, callbackId: command.callbackId)
     }
+    
+    // マイク on / off
+    @objc func setMicEnable(_ command: CDVInvokedUrlCommand) {
+        guard let isEnable = command.argument(at: 0) as? Bool else {return}
+        micEnable = isEnable
+        agoraKit.muteLocalAudioStream(micEnable)
+        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: ["micEnable": micEnable])
+        commandDelegate.send(result, callbackId: command.callbackId)
+    }
+    // マイク on / off のトグル
+    @objc func toggleMicEnable(_ command: CDVInvokedUrlCommand) {
+        micEnable = !micEnable
+        agoraKit.muteLocalAudioStream(micEnable)
+        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: ["micEnable": micEnable])
+        commandDelegate.send(result, callbackId: command.callbackId)
+    }
+    
     //
     @objc func setOnPushVolumeCallback(_ command: CDVInvokedUrlCommand) {
         pushCallbackId = command.callbackId
         
+        // error
+        if (true) {
+            let data = CDVRoomRecordingErrorCode.permissionError.toDictionary(message: "許可されていません")
+            
+            
+            let result = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: data);
+            
+            commandDelegate.send(result, callbackId: command.callbackId)
+            
+    
+        }
     }
     //
     @objc func setOnChangeSpeakersStatus(_ command: CDVInvokedUrlCommand) {
@@ -470,7 +502,13 @@ import AgoraRtcKit
             speakerStatusChangeCallbackIds.append(command.callbackId)
         }
     }
-    
+    // seton
+    @objc func setOnSpeakerOfflineCallback(_ command: CDVInvokedUrlCommand) {
+        // あれば追加する
+        if !speakerOfflineCallbackIds.contains(command.callbackId) {
+            speakerOfflineCallbackIds.append(command.callbackId)
+        }
+    }
 }
 
 // agora delegate
@@ -509,6 +547,14 @@ extension CDVRoomRecording: AgoraRtcEngineDelegate {
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didOfflineOfUid uid: UInt, reason: AgoraUserOfflineReason) {
         print("Did offline of uid: \(uid), reason: \(reason.rawValue)")
+        speakerOfflineCallbackIds.forEach({ id in
+            let data = [
+                "uid": uid,
+            ]
+            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+            result?.keepCallback = true
+            commandDelegate.send(result, callbackId: id)
+        })
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, audioQualityOfUid uid: UInt, quality: AgoraNetworkQuality, delay: UInt, lost: UInt) {
@@ -544,19 +590,5 @@ extension CDVRoomRecording: AgoraRtcEngineDelegate {
             result?.keepCallback = true
             commandDelegate.send(result, callbackId: callbackId)
         }
-    }
-}
-
-
-extension AVMutableCompositionTrack {
-    func append(url: URL) {
-        let newAsset = AVURLAsset(url: url)
-        let range = CMTimeRangeMake(kCMTimeZero, newAsset.duration)
-        let end = timeRange.end
-        print(end)
-        if let track = newAsset.tracks(withMediaType: AVMediaType.audio).first {
-            try! insertTimeRange(range, of: track, at: end)
-        }
-        
     }
 }
