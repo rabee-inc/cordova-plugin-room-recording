@@ -54,6 +54,9 @@ const RoomRecording = {
           case 'pushVolume':
               actionType = 'setOnPushVolumeCallback'
               break;
+          case 'offline':
+              actionType = 'setOnSpeakerOfflineCallback'
+              break;
           default: 
               break;
       }
