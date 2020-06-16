@@ -44,6 +44,10 @@ function onDeviceReady() {
     RoomRecording.on('changeSpeakersStatus', (data) => {	
         console.log(data);	
     });	
+    // オフラインの検出	
+    RoomRecording.on('offline', (data) => {	
+        window.alert('offline', data.uid);	
+    });	
 }	
 
 // 初期化	
