@@ -2,10 +2,17 @@
 
 // 本体 -> これを利用したもう一つ大きなクラスを作って 体裁を整える
 class RoomRecording {
-    constructor() {
+    constructor(params) {
         this.exec = require('cordova/exec');
-        this._listener = {};    
+        this._listener = {};
+        this.registerEvents('pushVolume', 'setOnPushVolumeCallback', params);
+        this.registerEvents('changeSpeakersStatus', 'setOnChangeSpeakersStatus', params);
+        this.registerEvents('offline', 'setOnSpeakerOfflineCallback', params);
     };
+
+    initialize(params) {
+        return this.createAction('initialize', params); 
+    }
 
     // cordova の実行ファイルを登録する
     registerCordovaExecuter(action, onSuccess, onFail, param) {
@@ -38,13 +45,6 @@ class RoomRecording {
         );
     };
     
-    initialize(params) {
-        this.registerEvents('pushVolume', 'setOnPushVolumeCallback', params);
-        this.registerEvents('changeSpeakersStatus', 'setOnChangeSpeakersStatus', params);
-        this.registerEvents('offline', 'setOnSpeakerOfflineCallback', params);
-        return this.createAction('initialize', params);
-    };
-
     trigger(event, value) {
         if (this._listener[event]) {
             this._listener[event].forEach(callback => {
