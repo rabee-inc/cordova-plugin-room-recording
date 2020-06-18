@@ -1,81 +1,127 @@
 'use strict';
 
-var exec = require('cordova/exec');
-
-// cordova の実行ファイルを登録する
-const registerCordovaExecuter = (action, onSuccess, onFail, param) => {
-    return exec(onSuccess, onFail, 'RoomRecording', action, [param]);
-};
-
-// promise で返す。 cordova の excuter の wrapper
-const createAction = (action, params) => {
-    return new Promise((resolve, reject) => {
-        // actionが定義されているかを判定したい
-        if (true) {
-            // cordova 実行ファイルを登録
-            registerCordovaExecuter(action, resolve, reject, params);
-        }
-        else {
-            // TODO: error handling
-        }
-    });
-};
-
 // 本体 -> これを利用したもう一つ大きなクラスを作って 体裁を整える
-const RoomRecording = {
-    initialize: (params) => createAction('initialize', params),
-    getMicPermission: (params) => createAction('getMicPermission', params),
+class RoomRecording {
+    constructor(params) {
+        this.exec = require('cordova/exec');
+        this._listener = {};
+        this.registerEvents('pushVolume', 'setOnPushVolumeCallback', params);
+        this.registerEvents('changeSpeakersStatus', 'setOnChangeSpeakersStatus', params);
+        this.registerEvents('offline', 'setOnSpeakerOfflineCallback', params);
+    };
+
+    initialize(params) {
+        return this.createAction('initialize', params); 
+    }
+
+    // cordova の実行ファイルを登録する
+    registerCordovaExecuter(action, onSuccess, onFail, param) {
+        return this.exec(onSuccess, onFail, 'RoomRecording', action, [param]);
+    };
+
+    // promise で返す。 cordova の excuter の wrapper
+    createAction(action, params) {
+        return new Promise((resolve, reject) => {
+            // actionが定義されているかを判定したい
+            if (true) {
+                // cordova 実行ファイルを登録
+                this.registerCordovaExecuter(action, resolve, reject, params);
+            }
+            else {
+                // TODO: error handling
+            }
+        });
+    };
+
+    // イベントをバインド
+    registerEvents(onSuccess, action, params) {
+        this.exec(
+            (data) => {
+                this.trigger(onSuccess, data);
+            }, 
+            (error) => {
+                console.log(error, 'error');
+            }, 'RoomRecording', action, [params]
+        );
+    };
+    
+    trigger(event, value) {
+        if (this._listener[event]) {
+            this._listener[event].forEach(callback => {
+                if (typeof callback === 'function') {
+                    callback(value);
+                }
+            });
+        }
+    };
+
+    getMicPermission(params) {
+        return this.createAction('getMicPermission', params)
+    };
+
     // for room
-    createRoom: (params) => createAction('joinRoom', params),
-    joinRoom: (params) => createAction('joinRoom', params),
-    leaveRoom: (params) => createAction('leaveRoom', params),
+    createRoom(params) {
+        return this.createAction('joinRoom', params)
+    };
+
+    joinRoom(params) {
+        return this.createAction('joinRoom', params)
+    };
+    leaveRoom(params) {
+        return this.createAction('leaveRoom', params)
+    };
     // for recording
-    startRecording: (params) => createAction('startRecording', params),
-    pauseRecording: (params) => createAction('pauseRecording', params),
-    resumeRecording: (params) => createAction('resumeRecording', params),
-    stopRecording: (params) => createAction('stopRecording', params),
-    split: (params) => createAction('split', params),
-    export: (params) => createAction('export', params),
-    exportWithCompression: (params) => createAction('exportWithCompression', params),
+    startRecording(params) {
+        return this.createAction('startRecording', params)
+    };
+    pauseRecording(params) {
+        return this.createAction('pauseRecording', params)
+    };
+    resumeRecording(params) {
+        return this.createAction('resumeRecording', params)
+    };
+    stopRecording(params) {
+        return this.createAction('stopRecording', params)
+    };
+    split(params) {
+        return this.createAction('split', params)
+    };
+    export(params) {
+        return this.createAction('export', params)
+    };
+    exportWithCompression(params) {
+        return this.createAction('exportWithCompression', params)
+    };
     // mic 操作
-    setMicEnable: (params) => createAction('setMicEnable', params),
-    toggleMic: () => createAction('toggleMicEnable', params),
+    setMicEnable(params) {
+        return this.createAction('setMicEnable', params)
+    };
+    toggleMic() {
+        return this.createAction('toggleMicEnable', params)
+    };
     // speaker 操作
-    setSpeakerEnable: (params) => createAction('setSpeakerEnable', params),
-    toggleSpeakerEnable: () => createAction('toggleSpeakerEnable', params),
+    setSpeakerEnable(params) {
+        return this.createAction('setSpeakerEnable', params)
+    };
+    toggleSpeakerEnable() {
+        return this.createAction('toggleSpeakerEnable', params)
+    };
     // 登録関係
-    on: (type, callback, id) => {
-      // type === progress | complete | failed;
-      let actionType = '';
-      switch(type) {
-          case 'changeSpeakersStatus': 
-              actionType = 'setOnChangeSpeakersStatus';
-              break;
-          case 'pushVolume':
-              actionType = 'setOnPushVolumeCallback'
-              break;
-          case 'offline':
-              actionType = 'setOnSpeakerOfflineCallback'
-              break;
-          default: 
-              break;
-      }
-      if (!actionType) return console.warn('please set action type');
-      exec(
-          (data) => {
-              // 成功
-              if (typeof callback === 'function') {
-                  callback(data)
-              }
-          },
-          (error) => {
-              // 失敗
-              // TODO: error handling
-              console.log(error, 'error')
-          },'RoomRecording', actionType, [{id}]
-      );
-  },
+    on(event, callback) {
+        this._listener[event] = this._listener[event] || [];
+        this._listener[event].push(callback);
+    };
+    off(event, callback) {
+        if (!this._listener[event]) this._listeners[event] = [];
+
+        if (event && typeof callback === 'function') {
+            var i = this._listener[event].indexOf(callback);
+            if (i !== -1) {
+                this._listener[event].splice(i, 1);
+            }
+        }
+    };
 }
 
 
-module.exports = RoomRecording;
+module.exports = new RoomRecording();

@@ -35,6 +35,17 @@ function onDeviceReady() {
     const splitBtn = document.querySelector('.splitBtn') 	
     splitBtn.addEventListener('click', split);	
 
+
+    // split 	
+    const offlineAlert = (data) => {
+        window.alert('offline', data.uid);
+    }
+    const eventOffBtn = document.querySelector('.eventOffBtn') 	
+    eventOffBtn.addEventListener('click', () => {
+        RoomRecording.off('offline', offlineAlert);
+        window.alert('func off')
+    });	
+
     // 音が入ってきたら	
     RoomRecording.on('pushVolume', (data) => {	
         const {total_volume, speakers} = data;	
@@ -45,9 +56,7 @@ function onDeviceReady() {
         console.log(data);	
     });	
     // オフラインの検出	
-    RoomRecording.on('offline', (data) => {	
-        window.alert('offline', data.uid);	
-    });	
+    RoomRecording.on('offline', offlineAlert);	
 }	
 
 // 初期化	
