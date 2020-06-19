@@ -51,6 +51,10 @@ function onDeviceReady() {
         const {total_volume, speakers} = data;	
         console.log(total_volume, speakers.length, speakers);	
     });	
+    // buffer
+    RoomRecording.on('pushBuffer', (data) => {
+        console.log('pushBuffer', data);
+    });
     // 人が入ってきたら	
     RoomRecording.on('changeSpeakersStatus', (data) => {	
         console.log(data);	

@@ -6,6 +6,7 @@ class RoomRecording {
         this.exec = require('cordova/exec');
         this._listener = {};
         this.registerEvents('pushVolume', 'setOnPushVolumeCallback', params);
+        this.registerEvents('pushBuffer', 'setOnPushBufferCallback', params);
         this.registerEvents('changeSpeakersStatus', 'setOnChangeSpeakersStatus', params);
         this.registerEvents('offline', 'setOnSpeakerOfflineCallback', params);
     };

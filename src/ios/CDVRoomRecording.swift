@@ -12,12 +12,15 @@ import AgoraRtcKit
     var completeCompressionCallbackId: String?
     var completeSplitCallbackId: String?
     var speakerOfflineCallbackIds: [String] = []
+    var pushBufferCallbackId: String?
+    
     
     var micEnable = true
     var speakerEnable = true
     var isRecording = true
     var RECORDING_DIR = ""
-
+    
+    var agoraMediaDataPlugin:AgoraMediaDataPlugin?
     
     
     // エラーコード定義
@@ -57,6 +60,11 @@ import AgoraRtcKit
         guard let agoraAppId = self.commandDelegate.settings["agora-app-id"] as? String else {return}
         agoraKit = AgoraRtcEngineKit.sharedEngine(withAppId: agoraAppId, delegate: self)
         
+        agoraMediaDataPlugin = AgoraMediaDataPlugin(agoraKit: agoraKit)
+        
+        agoraMediaDataPlugin?.registerAudioRawDataObserver([.recordAudio])
+        agoraMediaDataPlugin?.audioDelegate = self;
+        
         // なければフォルダ生成する
         do {
             var isDir: ObjCBool = false
@@ -70,7 +78,7 @@ import AgoraRtcKit
         speakerOfflineCallbackIds = []
         speakerStatusChangeCallbackIds = []
     };
-
+    
     @objc func initialize(_ command: CDVInvokedUrlCommand) {
         let result = CDVPluginResult(status: CDVCommandStatus_OK)
         commandDelegate.send(result, callbackId: command.callbackId)
@@ -482,18 +490,6 @@ import AgoraRtcKit
     //
     @objc func setOnPushVolumeCallback(_ command: CDVInvokedUrlCommand) {
         pushCallbackId = command.callbackId
-        
-        // error
-        if (true) {
-            let data = CDVRoomRecordingErrorCode.permissionError.toDictionary(message: "許可されていません")
-            
-            
-            let result = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: data);
-            
-            commandDelegate.send(result, callbackId: command.callbackId)
-            
-    
-        }
     }
     //
     @objc func setOnChangeSpeakersStatus(_ command: CDVInvokedUrlCommand) {
@@ -508,6 +504,29 @@ import AgoraRtcKit
         if !speakerOfflineCallbackIds.contains(command.callbackId) {
             speakerOfflineCallbackIds.append(command.callbackId)
         }
+    }
+    // push buffer の登録
+    @objc func setOnPushBufferCallback(_ command: CDVInvokedUrlCommand) {
+        pushBufferCallbackId = command.callbackId
+    }
+}
+
+// 随時波形取得用の拡張
+extension CDVRoomRecording: AgoraAudioDataPluginDelegate {
+    func mediaDataPlugin(_ mediaDataPlugin: AgoraMediaDataPlugin, didRecord audioRawData: AgoraAudioRawData) -> AgoraAudioRawData {
+        // レコーディング中のみ buffer を送る
+        if (!isRecording) {return audioRawData}
+        // callbackIdがあれば送る
+        if let callbackId = pushBufferCallbackId {
+            let buffer = Array(UnsafeBufferPointer(start: audioRawData.buffer, count:Int(audioRawData.bufferLength)))
+            let data = [
+                "buffer": buffer
+            ] as [String : Any]
+            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+            result?.keepCallback = true
+            commandDelegate.send(result, callbackId: callbackId)
+        }
+        return audioRawData
     }
 }
 
