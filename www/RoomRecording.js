@@ -93,6 +93,20 @@ class RoomRecording {
     exportWithCompression(params) {
         return this.createAction('exportWithCompression', params)
     };
+
+    getWaveForm(params) {
+        return this.createAction('getWaveForm', params)
+    };
+
+    hasRecordedFile(params) {
+        return this.createAction('hasRecordedFile', params)
+    };
+
+    getRecordedFile(params) {
+        return this.createAction('getRecordedFile', params)
+    };
+
+
     // mic 操作
     setMicEnable(params) {
         return this.createAction('setMicEnable', params)

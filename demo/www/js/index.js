@@ -36,7 +36,7 @@ function onDeviceReady() {
     splitBtn.addEventListener('click', split);	
 
 
-    // split 	
+    // offlinealert 	
     const offlineAlert = (data) => {
         window.alert('offline', data.uid);
     }
@@ -45,6 +45,17 @@ function onDeviceReady() {
         RoomRecording.off('offline', offlineAlert);
         window.alert('func off')
     });	
+    // getwaveform
+    const getWaveFormBtn = document.querySelector('.getWaveFormBtn') 	
+    getWaveFormBtn.addEventListener('click', getWaveForm);	
+
+    // hasrecordedfile
+    const hasRecordedFileBtn = document.querySelector('.hasRecordedFileBtn') 	
+    hasRecordedFileBtn.addEventListener('click', hasRecordedFile);	
+
+    // getrecordedfile
+    const getRecordedFileBtn = document.querySelector('.getRecordedFileBtn') 	
+    getRecordedFileBtn.addEventListener('click', getRecordedFile);	
 
     // 音が入ってきたら	
     RoomRecording.on('pushVolume', (data) => {	
@@ -127,3 +138,71 @@ function split() {
         window.alert(seconds + "で分割しました");	
     });	
 } 
+
+function getWaveForm() {	
+    RoomRecording.hasRecordedFile().then((v) => {
+        if (JSON.stringify(v)) {
+            RoomRecording.getWaveForm().then((data) => {	
+                console.log(data);	
+                window.alert("波形データを取得しました");	
+            });	
+        } else {
+            window.alert('波形データ取得に失敗しました');
+        }
+    });
+} 
+
+function getRecordedFile() {	
+    RoomRecording.hasRecordedFile().then((v) => {
+        if (JSON.stringify(v)) {
+            RoomRecording.getRecordedFile().then((fileName) => {	
+                console.log(JSON.stringify(fileName));
+                window.alert("ファイルを取得しました");	
+            });	
+        } else {
+            window.alert('ファイル取得に失敗しました');
+        }
+    });
+} 
+
+function hasRecordedFile() {	
+    RoomRecording.hasRecordedFile().then((v) => {	
+        console.log(JSON.stringify(v));	
+        window.alert("録音済ファイル有無をチェックしました");
+    });	
+} 
+
+
+// async restore(id) {
+
+
+//     try {
+//       var recorder = (window.recorder) ? window.recorder : window.rec;
+//       const audio_data = await recorder.getAudio(id);
+//       const url = await recorder.getWaveForm(audio_data.full_audio.path);
+//       const binary = await this.getAudioBinary(url);
+  
+//       let buffer;
+//       if (uuaa.os.name === "Android") {
+//         const a = new Int16Array(binary);
+//         const bit15 = 1 << 15;
+//         const f = [];
+//         for (let i = 0; i < a.length; ++i) {
+//           f.push(a[i] / bit15);
+//         }
+//         buffer = new Float32Array(f);
+//       } else {
+//         buffer = new Float32Array(binary);
+//       }
+  
+//       this.dataLength = buffer.length;
+//       var loopNum = Math.ceil(this.dataLength / this.bufferSize);
+//       this.recorder = true;
+//       for (var i = 0; i < loopNum; ++i) {
+//         var to = Math.min((i + 1) * this.bufferSize);
+//         this.trigger("pushBuffer", buffer.subarray(i * this.bufferSize, to));
+//       }
+//     }
+//     catch (e) {
+//       throw e;
+//     }
