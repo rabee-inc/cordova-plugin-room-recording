@@ -48,6 +48,10 @@
 
     <source-file src="src/ios/CDVRoomRecording.swift" />
     <source-file src="src/ios/CDVRoomRecording-Bridging-Header.h" />
+    <source-file src="src/ios/AgoraMediaDataPlugin.h" />
+    <source-file src="src/ios/AgoraMediaDataPlugin.mm" />
+    <source-file src="src/ios/AgoraMediaRawData.h" />
+    <source-file src="src/ios/AgoraMediaRawData.m" />
 
     <!-- ios -->
     <podspec>

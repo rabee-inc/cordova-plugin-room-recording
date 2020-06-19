@@ -1,6 +1,6 @@
 import AgoraRtcKit
 
-@objc(CDVRoomRecording) class CDVRoomRecording : CDVPlugin {
+@objc(CDVRoomRecording) class CDVRoomRecording : CDVPlugin,  AgoraAudioDataPluginDelegate {
     
     var agoraKit:AgoraRtcEngineKit!
     // callback
@@ -17,7 +17,8 @@ import AgoraRtcKit
     var speakerEnable = true
     var isRecording = true
     var RECORDING_DIR = ""
-
+    
+    var agoraMediaDataPlugin:AgoraMediaDataPlugin?
     
     
     // エラーコード定義
@@ -57,6 +58,11 @@ import AgoraRtcKit
         guard let agoraAppId = self.commandDelegate.settings["agora-app-id"] as? String else {return}
         agoraKit = AgoraRtcEngineKit.sharedEngine(withAppId: agoraAppId, delegate: self)
         
+        agoraMediaDataPlugin = AgoraMediaDataPlugin(agoraKit: agoraKit)
+        
+        agoraMediaDataPlugin?.registerAudioRawDataObserver([.recordAudio])
+        agoraMediaDataPlugin?.audioDelegate = self;
+        
         // なければフォルダ生成する
         do {
             var isDir: ObjCBool = false
@@ -70,6 +76,12 @@ import AgoraRtcKit
         speakerOfflineCallbackIds = []
         speakerStatusChangeCallbackIds = []
     };
+    
+    func mediaDataPlugin(_ mediaDataPlugin: AgoraMediaDataPlugin, didRecord audioRawData: AgoraAudioRawData) -> AgoraAudioRawData {
+        let buffer = Array(UnsafeBufferPointer(start: audioRawData.buffer, count:Int(audioRawData.bufferLength)))
+        print(buffer)
+        return audioRawData
+    }
 
     @objc func initialize(_ command: CDVInvokedUrlCommand) {
         let result = CDVPluginResult(status: CDVCommandStatus_OK)
