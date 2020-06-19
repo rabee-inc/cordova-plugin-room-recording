@@ -500,18 +500,12 @@ import AgoraRtcKit
 
     
     @objc func getRecordedFile(_ command: CDVInvokedUrlCommand){
-        do{
-            let fileName = try FileManager.default.contentsOfDirectory(atPath: RECORDING_DIR)
-            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: fileName)
-            self.commandDelegate.send(result, callbackId: command.callbackId)
-        } catch let err {
-            let message = CDVRoomRecordingErrorCode.folderManipulationError.toDictionary(message: "can't get recording file: \(err)")
-            let result = CDVPluginResult(
-             status: CDVCommandStatus_ERROR,
-             messageAs:message
-             )
-            self.commandDelegate.send(result, callbackId: command.callbackId)
-        }
+        let path = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
+        let data = [
+            "absolute_path": path.absoluteString
+        ] as [String:Any]
+        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+        self.commandDelegate.send(result, callbackId: command.callbackId)
     }
     
     
