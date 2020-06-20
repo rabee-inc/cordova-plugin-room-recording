@@ -56,10 +56,10 @@
     <!-- ios -->
     <podspec>
       <config>
-        <source url="https://github.com/CocoaPods/Specs.git"/>
+        <source url="https://cdn.cocoapods.org"/>
       </config>
       <pods use-frameworks="true">
-        <pod name="AgoraRtcEngine_iOS" spec="~> 3.0.1" />
+        <pod name="AgoraRtcEngine_iOS" spec="~> 3.0.1.1" />
       </pods>
     </podspec>
     <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
