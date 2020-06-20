@@ -36,7 +36,7 @@ function onDeviceReady() {
     splitBtn.addEventListener('click', split);	
 
 
-    // split 	
+    // offlinealert 	
     const offlineAlert = (data) => {
         window.alert('offline', data.uid);
     }
@@ -45,6 +45,17 @@ function onDeviceReady() {
         RoomRecording.off('offline', offlineAlert);
         window.alert('func off')
     });	
+    // getwaveform
+    const getWaveFormBtn = document.querySelector('.getWaveFormBtn') 	
+    getWaveFormBtn.addEventListener('click', getWaveForm);	
+
+    // hasrecordedfile
+    const hasRecordedFileBtn = document.querySelector('.hasRecordedFileBtn') 	
+    hasRecordedFileBtn.addEventListener('click', hasRecordedFile);	
+
+    // getrecordedfile
+    const getRecordedFileBtn = document.querySelector('.getRecordedFileBtn') 	
+    getRecordedFileBtn.addEventListener('click', getRecordedFile);	
 
     // 音が入ってきたら	
     RoomRecording.on('pushVolume', (data) => {	
@@ -125,5 +136,38 @@ function split() {
     RoomRecording.split(seconds).then((v) => {	
         console.log(JSON.stringify(v));	
         window.alert(seconds + "で分割しました");	
+    });	
+} 
+
+function getWaveForm() {	
+    RoomRecording.hasRecordedFile().then((v) => {
+        if (JSON.stringify(v)) {
+            RoomRecording.getWaveForm().then((data) => {	
+                console.log(data);	
+                window.alert("波形データを取得しました");	
+            });	
+        } else {
+            window.alert('波形データ取得に失敗しました');
+        }
+    });
+} 
+
+function getRecordedFile() {	
+    RoomRecording.hasRecordedFile().then((v) => {
+        if (JSON.stringify(v)) {
+            RoomRecording.getRecordedFile().then((fileName) => {	
+                console.log(JSON.stringify(fileName));
+                window.alert("ファイルを取得しました");	
+            });	
+        } else {
+            window.alert('ファイル取得に失敗しました');
+        }
+    });
+} 
+
+function hasRecordedFile() {	
+    RoomRecording.hasRecordedFile().then((v) => {	
+        console.log(JSON.stringify(v));	
+        window.alert("録音済ファイル有無をチェックしました");
     });	
 } 

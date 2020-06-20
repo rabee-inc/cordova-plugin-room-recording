@@ -453,6 +453,64 @@ import AgoraRtcKit
             }
         }
     }
+    
+    
+    // 波形を取得する
+    @objc func getWaveForm(_ command: CDVInvokedUrlCommand) {
+        guard let path = URL(string: RECORDING_DIR + "/recorded.wav") else {
+            let result = CDVPluginResult(
+                status: CDVCommandStatus_ERROR,
+                messageAs: CDVRoomRecordingErrorCode.permissionError.toDictionary(message: "[recorder: getAudio] First argument required. Please specify folder id")
+                )
+            self.commandDelegate.send(result, callbackId: command.callbackId)
+            return
+        }
+        do {
+            let audioFile = try AVAudioFile(forReading: path)
+            let nframe = Int(audioFile.length)
+            let PCMBuffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: AVAudioFrameCount(nframe))!
+            try audioFile.read(into: PCMBuffer)
+            guard let floatChannelData = PCMBuffer.floatChannelData else {
+                // TODO エラーハンドリング
+                return
+            }
+            let bufferData = Data(buffer: UnsafeMutableBufferPointer<Float>(start:floatChannelData[0], count: nframe))
+            let pcmBufferPath = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
+            try bufferData.write(to: pcmBufferPath)
+            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: pcmBufferPath.absoluteString)
+            self.commandDelegate.send(result, callbackId: command.callbackId)
+        } catch let err {
+            let result = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: "get wave form error: \(err)")
+            commandDelegate.send(result, callbackId: command.callbackId)
+        }
+    }
+    
+    @objc func hasRecordedFile(_ command: CDVInvokedUrlCommand){
+        if FileManager.default.fileExists(atPath: RECORDING_DIR + "/recorded.wav") {
+            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: true)
+            self.commandDelegate.send(result, callbackId: command.callbackId)
+        } else {
+            let result = CDVPluginResult(
+                status: CDVCommandStatus_ERROR,
+                messageAs: false
+            )
+            self.commandDelegate.send(result, callbackId: command.callbackId)
+        }
+    }
+
+    
+    @objc func getRecordedFile(_ command: CDVInvokedUrlCommand){
+        let path = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
+        let data = [
+            "absolute_path": path.absoluteString
+        ] as [String:Any]
+        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+        self.commandDelegate.send(result, callbackId: command.callbackId)
+    }
+    
+    
+    
+    
     // スピーカー on / off
     @objc func setSpeakerEnable(_ command: CDVInvokedUrlCommand) {
         guard let isEnable = command.argument(at: 0) as? Bool else {return}
