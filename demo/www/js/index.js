@@ -171,38 +171,3 @@ function hasRecordedFile() {
         window.alert("録音済ファイル有無をチェックしました");
     });	
 } 
-
-
-// async restore(id) {
-
-
-//     try {
-//       var recorder = (window.recorder) ? window.recorder : window.rec;
-//       const audio_data = await recorder.getAudio(id);
-//       const url = await recorder.getWaveForm(audio_data.full_audio.path);
-//       const binary = await this.getAudioBinary(url);
-  
-//       let buffer;
-//       if (uuaa.os.name === "Android") {
-//         const a = new Int16Array(binary);
-//         const bit15 = 1 << 15;
-//         const f = [];
-//         for (let i = 0; i < a.length; ++i) {
-//           f.push(a[i] / bit15);
-//         }
-//         buffer = new Float32Array(f);
-//       } else {
-//         buffer = new Float32Array(binary);
-//       }
-  
-//       this.dataLength = buffer.length;
-//       var loopNum = Math.ceil(this.dataLength / this.bufferSize);
-//       this.recorder = true;
-//       for (var i = 0; i < loopNum; ++i) {
-//         var to = Math.min((i + 1) * this.bufferSize);
-//         this.trigger("pushBuffer", buffer.subarray(i * this.bufferSize, to));
-//       }
-//     }
-//     catch (e) {
-//       throw e;
-//     }
