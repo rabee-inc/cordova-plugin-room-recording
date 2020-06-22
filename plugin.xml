@@ -18,12 +18,17 @@
         <param name="onload" value="true" />
       </feature>
     </config-file>
-
-    <config-file target="AndroidManifest.xml" parent="/*">
+    <!-- for permission -->
+    <config-file target="AndroidManifest.xml" parent="/manifest" mode="merge">
+      <uses-permission android:name="android.permission.READ_PHONE_STATE" />   
       <uses-permission android:name="android.permission.INTERNET" />
-      <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+      <uses-permission android:name="android.permission.RECORD_AUDIO" />
+      <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+      <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+      <uses-permission android:name="android.permission.BLUETOOTH" />
+      <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+      <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     </config-file>
-
     <!-- soruce -->
     <source-file src="src/android/CDVRoomRecording.kt" target-dir="app/src/main/kotlin/jp/rabee"/>
 
