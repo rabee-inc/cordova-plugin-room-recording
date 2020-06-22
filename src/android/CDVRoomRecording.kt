@@ -1,27 +1,67 @@
 package jp.rabee
 
-import org.apache.cordova.*
-import org.json.JSONException
+import android.content.pm.PackageManager
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.util.Log
-import android.view.WindowManager
-import org.json.*
-import io.agora.rtc.*
+import io.agora.rtc.IRtcEngineEventHandler
+import io.agora.rtc.RtcEngine
+import org.apache.cordova.*
+import org.json.JSONArray
+import org.json.JSONObject
 
 class CDVRoomRecording : CordovaPlugin() {
     companion object {
         protected val TAG = "CDVRoomRecording"
     }
 
+    private val PERMISSION_REQ_ID_RECORD_AUDIO = 22
+
     lateinit var context: CallbackContext
-    lateinit var agoraRtcEngine: RtcEngine
+    private var agoraRtcEngine: RtcEngine? = null
+
+    //  callback
+    private var joinRoomCallback: CallbackContext? = null
+    private var leaveRoomCallback: CallbackContext? = null
+    // event handler
+    private val rtcEventHandler = object : IRtcEngineEventHandler() {
+        override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
+            super.onJoinChannelSuccess(channel, uid, elapsed)
+            joinRoomCallback.let { it
+                val data = JSONObject()
+                data.put("roomId", channel)
+                data.put("uid", uid)
+                data.put("elapsed", elapsed)
+                val p = PluginResult(PluginResult.Status.OK, data)
+                it?.sendPluginResult(p)
+            }
+        }
+        override fun onLeaveChannel(stats: RtcStats?) {
+            super.onLeaveChannel(stats)
+            leaveRoomCallback.let {
+                val p = PluginResult(PluginResult.Status.OK, true)
+                it?.sendPluginResult(p)
+            }
+        }
+        override fun onUserOffline(uid: Int, reason: Int) {}
+        override fun onUserMuteAudio(uid: Int, muted: Boolean) {}
+    }
 
     // アプリ起動時に呼ばれる
     override public fun initialize(cordova: CordovaInterface,  webView: CordovaWebView) {
-        LOG.d(TAG, "hi! This is CDVKeepAwake. Now intitilaizing ...");
-        val agoraAppId = preferences.getString("agora-app-id", null);
-        agoraAppId.let { it
-            agoraRtcEngine = RtcEngine.create(cordova.context, it, null)
+        // mic permissio を確認
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)) {
+            val agoraAppId = preferences.getString("agora-app-id", null);
+            agoraAppId.let { it
+                try {
+                    agoraRtcEngine = RtcEngine.create(cordova.context, it, this.rtcEventHandler)
+                    print(agoraRtcEngine)
+                } catch (e: Exception) {
+                    Log.e(TAG, Log.getStackTraceString(e))
 
+                    throw RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e))
+                }
+            }
         }
     }
 
@@ -34,7 +74,19 @@ class CDVRoomRecording : CordovaPlugin() {
                 result = this.init(context)
             }
             "joinRoom" -> {
-                result = this.joinRoom(context)
+                val data = data.getJSONObject(0)
+                val roomId = data.getString("room_id")
+                // error
+                result = if (roomId != null) {
+                    this.joinRoom(roomId, context)
+                }
+                // room id がないよ
+                else {
+                    val p = PluginResult(PluginResult.Status.ERROR, "not found arguments");
+                    callbackContext.sendPluginResult(p)
+                    false
+                }
+
             }
             "leaveRoom" -> {
                 result = this.leaveRoom(context)
@@ -101,10 +153,16 @@ class CDVRoomRecording : CordovaPlugin() {
     private fun init(callbackContext: CallbackContext): Boolean {
         return true
     }
-    private fun joinRoom(callbackContext: CallbackContext): Boolean {
+    // 参加
+    private fun joinRoom(roomId: String, callbackContext: CallbackContext): Boolean {
+        joinRoomCallback = callbackContext
+        agoraRtcEngine?.joinChannel(null, roomId, "", 0)
         return true
     }
+    // 外出
     private fun leaveRoom(callbackContext: CallbackContext): Boolean {
+        leaveRoomCallback = callbackContext
+        agoraRtcEngine?.leaveChannel()
         return true
     }
     // 録音系
@@ -165,4 +223,19 @@ class CDVRoomRecording : CordovaPlugin() {
     private fun setOnSpeakerOfflineCallback(callbackContext: CallbackContext): Boolean {
         return true
     }
+
+    // パーミッションあるかどうか確認
+    private fun checkSelfPermission(permission: String, requestCode: Int): Boolean {
+        Log.i(TAG, "checkSelfPermission $permission $requestCode")
+        if (ContextCompat.checkSelfPermission(cordova.context,
+                        permission) != PackageManager.PERMISSION_GRANTED) {
+
+
+            ActivityCompat.requestPermissions(cordova.activity, arrayOf(permission), requestCode)
+
+            return false
+        }
+        return true
+    }
+
 }
