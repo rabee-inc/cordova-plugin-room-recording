@@ -1,6 +1,6 @@
 dependencies {
     compile 'com.android.support:multidex:1.0.3'
-    // some plugin to use, write here
+    implementation 'io.agora.rtc:voice-sdk:3.0.0'
 }
 android {
     dexOptions {
