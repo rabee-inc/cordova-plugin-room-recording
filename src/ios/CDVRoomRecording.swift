@@ -13,7 +13,7 @@ import AgoraRtcKit
     var completeSplitCallbackId: String?
     var speakerOfflineCallbackIds: [String] = []
     var pushBufferCallbackId: String?
-    var speakerCallbackId: String?
+    var pushSpeakersVolumeCallbackId: String?
     
     
     var micEnable = true
@@ -567,7 +567,7 @@ import AgoraRtcKit
     
     //
     @objc func setOnSpeakerCallback(_ command: CDVInvokedUrlCommand) {
-        speakerCallbackId = command.callbackId
+        pushSpeakersVolumeCallbackId = command.callbackId
     }
 
     //
@@ -673,7 +673,7 @@ extension CDVRoomRecording: AgoraRtcEngineDelegate {
             getSpeakerData(callbackId: callbackId, speakers: speakers, totalVolume: totalVolume)
         }
         // callbackid があって レコーディング中の時のみ
-        if let callbackId = self.speakerCallbackId  {
+        if let callbackId = self.pushSpeakersVolumeCallbackId  {
             getSpeakerData(callbackId: callbackId, speakers: speakers, totalVolume: totalVolume)
         }
 
