@@ -13,6 +13,7 @@ import AgoraRtcKit
     var completeSplitCallbackId: String?
     var speakerOfflineCallbackIds: [String] = []
     var pushBufferCallbackId: String?
+    var pushSpeakersVolumeCallbackId: String?
     
     
     var micEnable = true
@@ -563,6 +564,12 @@ import AgoraRtcKit
     @objc func setOnPushVolumeCallback(_ command: CDVInvokedUrlCommand) {
         pushCallbackId = command.callbackId
     }
+    
+    //
+    @objc func setOnSpeakerCallback(_ command: CDVInvokedUrlCommand) {
+        pushSpeakersVolumeCallbackId = command.callbackId
+    }
+
     //
     @objc func setOnChangeSpeakersStatus(_ command: CDVInvokedUrlCommand) {
         // あれば追加する
@@ -663,23 +670,33 @@ extension CDVRoomRecording: AgoraRtcEngineDelegate {
         // callbackid があって レコーディング中の時のみ
         if let callbackId = self.pushCallbackId  {
             if (!isRecording) {return};
-                
-            let resultSpeakers = speakers.map({ speaker in
-                return [
-                    "room_id": speaker.channelId,
-                    "uid": speaker.uid,
-                    "volume": speaker.volume,
-                    "vad": speaker.vad
-                ]
-            })
-            let data = [
-                "total_volume": totalVolume,
-                "speakers": resultSpeakers
-            ] as [String : Any]
-            
-            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
-            result?.keepCallback = true
-            commandDelegate.send(result, callbackId: callbackId)
+            getSpeakerData(callbackId: callbackId, speakers: speakers, totalVolume: totalVolume)
         }
+        // callbackid があって レコーディング中の時のみ
+        if let callbackId = self.pushSpeakersVolumeCallbackId  {
+            getSpeakerData(callbackId: callbackId, speakers: speakers, totalVolume: totalVolume)
+        }
+
+    }
+
+    
+    
+    private func getSpeakerData(callbackId: String, speakers: [AgoraRtcAudioVolumeInfo], totalVolume: Int){
+        let resultSpeakers = speakers.map({ speaker in
+            return [
+                "room_id": speaker.channelId,
+                "uid": speaker.uid,
+                "volume": speaker.volume,
+                "vad": speaker.vad
+            ]
+        })
+        let data = [
+            "total_volume": totalVolume,
+            "speakers": resultSpeakers
+        ] as [String : Any]
+
+        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+        result?.keepCallback = true
+        commandDelegate.send(result, callbackId: callbackId)
     }
 }
