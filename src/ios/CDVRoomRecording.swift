@@ -510,6 +510,8 @@ import AgoraRtcKit
                 commandDelegate.send(r, callbackId: command.callbackId)
                 return;
             }
+            let result = CDVPluginResult(status: CDVCommandStatus_OK)
+            commandDelegate.send(result, callbackId: command.callbackId)
         }
 
     }
