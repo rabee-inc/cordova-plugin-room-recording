@@ -7,7 +7,7 @@ class RoomRecording {
         this._listener = {};
         this.registerEvents('pushVolume', 'setOnPushVolumeCallback', params);
         this.registerEvents('pushBuffer', 'setOnPushBufferCallback', params);
-        this.registerEvents('pushBuffer', 'setOnSpeakerCallback', params);
+        this.registerEvents('pushSpeakersVolume', 'setOnSpeakerCallback', params);
         this.registerEvents('changeSpeakersStatus', 'setOnChangeSpeakersStatus', params);
         this.registerEvents('offline', 'setOnSpeakerOfflineCallback', params);
     };
