@@ -492,6 +492,25 @@ import AgoraRtcKit
         self.commandDelegate.send(result, callbackId: command.callbackId)
     
     }
+    
+    @objc func removeRecordedFile(_ command: CDVInvokedUrlCommand){
+        let recordedURL = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
+        if FileManager.default.fileExists(atPath: RECORDING_DIR + "/recorded.wav") {
+            do {
+                try FileManager.default.removeItem(at: recordedURL)
+            }
+            catch let error {
+                let e = CDVRoomRecordingErrorCode.folderManipulationError.toDictionary(message: error.localizedDescription)
+                let r = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: e)
+                commandDelegate.send(r, callbackId: command.callbackId)
+                return;
+            }
+            let result = CDVPluginResult(status: CDVCommandStatus_OK)
+            commandDelegate.send(result, callbackId: command.callbackId)
+        }
+
+    }
+
 
     
     @objc func getRecordedFile(_ command: CDVInvokedUrlCommand){
