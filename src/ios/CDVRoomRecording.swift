@@ -486,16 +486,11 @@ import AgoraRtcKit
     }
     
     @objc func hasRecordedFile(_ command: CDVInvokedUrlCommand){
-        if FileManager.default.fileExists(atPath: RECORDING_DIR + "/recorded.wav") {
-            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: true)
-            self.commandDelegate.send(result, callbackId: command.callbackId)
-        } else {
-            let result = CDVPluginResult(
-                status: CDVCommandStatus_ERROR,
-                messageAs: false
-            )
-            self.commandDelegate.send(result, callbackId: command.callbackId)
-        }
+        let exists = FileManager.default.fileExists(atPath: RECORDING_DIR + "/recorded.wav")
+
+        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: exists)
+        self.commandDelegate.send(result, callbackId: command.callbackId)
+    
     }
 
     
