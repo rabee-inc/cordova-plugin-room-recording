@@ -669,8 +669,10 @@ extension CDVRoomRecording: AgoraRtcEngineDelegate {
     func rtcEngine(_ engine: AgoraRtcEngineKit, reportAudioVolumeIndicationOfSpeakers speakers: [AgoraRtcAudioVolumeInfo], totalVolume: Int) {
         // callbackid があって レコーディング中の時のみ
         if let callbackId = self.pushCallbackId  {
-            if (!isRecording) {return};
-            getSpeakerData(callbackId: callbackId, speakers: speakers, totalVolume: totalVolume)
+            if (isRecording) {
+                getSpeakerData(callbackId: callbackId, speakers: speakers, totalVolume: totalVolume)
+            };
+            
         }
         // callbackid があって レコーディング中の時のみ
         if let callbackId = self.pushSpeakersVolumeCallbackId  {
