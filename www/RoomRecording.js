@@ -106,6 +106,10 @@ class RoomRecording {
         return this.createAction('getRecordedFile', params)
     };
 
+    removeRecordedFile(params) {
+        return this.createAction('removeRecordedFile', params)
+    };
+
 
     // mic 操作
     setMicEnable(params) {
