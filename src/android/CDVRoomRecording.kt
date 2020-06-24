@@ -4,11 +4,13 @@ import android.content.pm.PackageManager
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import io.agora.rtc.Constants
 import io.agora.rtc.IRtcEngineEventHandler
 import io.agora.rtc.RtcEngine
 import org.apache.cordova.*
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 class CDVRoomRecording : CordovaPlugin() {
     companion object {
@@ -16,9 +18,14 @@ class CDVRoomRecording : CordovaPlugin() {
     }
 
     private val PERMISSION_REQ_ID_RECORD_AUDIO = 22
+    private var isRecording = false
 
     lateinit var context: CallbackContext
     private var agoraRtcEngine: RtcEngine? = null
+
+    // root フォルダーのチェック
+    private var RECORDING_DIR = ""
+    private var SAMPLE_RATE = 44100
 
     //  callback
     private var joinRoomCallback: CallbackContext? = null
@@ -62,6 +69,8 @@ class CDVRoomRecording : CordovaPlugin() {
                     throw RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e))
                 }
             }
+
+            RECORDING_DIR = cordova.context.filesDir.absolutePath + "/colloboRecording";
         }
     }
 
@@ -96,6 +105,9 @@ class CDVRoomRecording : CordovaPlugin() {
             }
             "pauseRecording" -> {
                 result = this.pauseRecording(context)
+            }
+            "stopRecording" -> {
+                result = this.stopRecording(context)
             }
             "resumeRecording" -> {
                 result = this.resumeRecording(context)
@@ -167,15 +179,74 @@ class CDVRoomRecording : CordovaPlugin() {
     }
     // 録音系
     private fun startRecording(callbackContext: CallbackContext): Boolean {
+        if (isRecording) {
+            // 録音スタートしないい
+            val p = PluginResult(PluginResult.Status.ERROR, "have already started")
+            callbackContext.sendPluginResult(p)
+            return true
+        }
+
+        isRecording = true
+        // 録音前にすでに録音されているものがあれば削除する
+        val recordedDir = File(RECORDING_DIR + "recorded.wav")
+        if (recordedDir.exists()) {
+            recordedDir.delete()
+        }
+        agoraRtcEngine?.startAudioRecording(RECORDING_DIR + "/temp.wav",
+                SAMPLE_RATE, Constants.AUDIO_RECORDING_QUALITY_MEDIUM)
+        val data = JSONObject()
+        data.put("sampleRate", SAMPLE_RATE);
+        val p = PluginResult(PluginResult.Status.OK, data)
+        callbackContext.sendPluginResult(p)
         return true
     }
+    // TODO: pause時には波形の合成を行う
     private fun pauseRecording(callbackContext: CallbackContext): Boolean {
+        if (!isRecording) {
+            // スタートしていないのでエラーを返す
+            val p = PluginResult(PluginResult.Status.ERROR, "not start yet")
+            callbackContext.sendPluginResult(p)
+            return true
+        }
+        isRecording = false
+        agoraRtcEngine?.stopAudioRecording()
+        val p = PluginResult(PluginResult.Status.OK, true)
+        callbackContext.sendPluginResult(p)
         return true
     }
+
+    // start と resume は基本同じ対応になる
     private fun resumeRecording(callbackContext: CallbackContext): Boolean {
+
+        if (isRecording) {
+            // 録音スタートしないい
+            val p = PluginResult(PluginResult.Status.ERROR, "have already started")
+            callbackContext.sendPluginResult(p)
+            return true
+        }
+
+        isRecording = true
+        agoraRtcEngine?.startAudioRecording(RECORDING_DIR + "/temp.wav",
+                SAMPLE_RATE, Constants.AUDIO_RECORDING_QUALITY_MEDIUM)
+        val data = JSONObject()
+        data.put("sampleRate", SAMPLE_RATE);
+        val p = PluginResult(PluginResult.Status.OK, data)
+        callbackContext.sendPluginResult(p)
         return true
     }
+
+    // TODO: stop時にも波形の合成を行うが、基本的にファイルが消えるので
     private fun stopRecording(callbackContext: CallbackContext): Boolean {
+        if (!isRecording) {
+            // スタートしてないのでエラーを返す
+            val p = PluginResult(PluginResult.Status.ERROR, "not start yet")
+            callbackContext.sendPluginResult(p)
+            return true
+        }
+        isRecording = false
+        agoraRtcEngine?.stopAudioRecording()
+        val p = PluginResult(PluginResult.Status.OK, true)
+        callbackContext.sendPluginResult(p)
         return true
     }
     // 音声操作系
