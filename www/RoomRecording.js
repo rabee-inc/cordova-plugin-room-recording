@@ -141,6 +141,9 @@ class RoomRecording {
             }
         }
     };
+    clearEventListner(event) {
+        this._listener[event] = [];
+    };
 }
 
 
