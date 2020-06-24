@@ -5,8 +5,11 @@ import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
 import io.agora.rtc.Constants
+import io.agora.rtc.Constants.AUDIO_RECORDING_QUALITY_MEDIUM
 import io.agora.rtc.IRtcEngineEventHandler
 import io.agora.rtc.RtcEngine
+import nl.bravobit.ffmpeg.ExecuteBinaryResponseHandler
+import nl.bravobit.ffmpeg.FFmpeg
 import org.apache.cordova.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -210,8 +213,7 @@ class CDVRoomRecording : CordovaPlugin() {
         }
         isRecording = false
         agoraRtcEngine?.stopAudioRecording()
-        val p = PluginResult(PluginResult.Status.OK, true)
-        callbackContext.sendPluginResult(p)
+        mergeRecording(callbackContext)
         return true
     }
 
@@ -245,8 +247,7 @@ class CDVRoomRecording : CordovaPlugin() {
         }
         isRecording = false
         agoraRtcEngine?.stopAudioRecording()
-        val p = PluginResult(PluginResult.Status.OK, true)
-        callbackContext.sendPluginResult(p)
+        mergeRecording(callbackContext)
         return true
     }
     // 音声操作系
@@ -309,4 +310,75 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
 
+    private fun mergeRecording(callbackContext: CallbackContext) {
+        var commands = ArrayList<String>()
+        // 一時的につなげいる
+        val tempOutputFile = File(RECORDING_DIR + "/temp-output.wav")
+        // temp.wav を recorded.wav にマージする
+        val tempFile = File(RECORDING_DIR + "/temp.wav")
+        val recordedFile = File(RECORDING_DIR + "/recorded.wav");
+        var concatAudioCounter = 0
+
+        // success と finish を発火させるのhに必要
+        commands.add("-y")
+
+        if (recordedFile.exists()) {
+            commands.add("-i")
+            commands.add(recordedFile.absolutePath)
+            concatAudioCounter++
+        }
+
+        commands.add("-i");
+        commands.add(tempFile.absolutePath);
+        concatAudioCounter++
+
+        if (concatAudioCounter > 0) {
+            commands.add("-filter_complex");
+            commands.add("concat=n=" + concatAudioCounter + ":v=0:a=1");
+        }
+
+        // 出力先の設定
+        commands.add(tempOutputFile.absolutePath)
+        // コマンドの連結
+        val command = commands.toTypedArray()
+
+        val ffmpeg = FFmpeg.getInstance(cordova.context)
+        if (ffmpeg.isSupported) {
+            ffmpeg.execute(command, object: ExecuteBinaryResponseHandler() {
+                override fun onStart() {
+                    super.onStart()
+                    LOG.v(TAG, "start")
+                }
+                override fun onProgress(message: String?) {
+                    super.onProgress(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onFailure(message: String?) {
+                    super.onFailure(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onSuccess(message: String?) {
+                    super.onSuccess(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onFinish() {
+                    super.onFinish()
+                    if (recordedFile.exists()) {
+                        recordedFile.delete()
+                    }
+                    recordedFile.parentFile.mkdir()
+                    val newRecordedFile = File(recordedFile.absolutePath)
+                    tempOutputFile.renameTo(newRecordedFile)
+                    // temp.wav の削除
+                    tempFile.delete()
+
+                    // 成功
+                    val r = PluginResult(PluginResult.Status.OK, true)
+                    callbackContext.sendPluginResult(r)
+                }
+            })
+        }
+
+
+    }
 }
