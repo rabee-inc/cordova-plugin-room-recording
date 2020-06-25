@@ -14,7 +14,8 @@ import AgoraRtcKit
     var speakerOfflineCallbackIds: [String] = []
     var pushBufferCallbackId: String?
     var pushSpeakersVolumeCallbackId: String?
-    
+    var sampleRate = 0
+    var bufferSize = 0
     
     var micEnable = true
     var speakerEnable = true
@@ -52,7 +53,9 @@ import AgoraRtcKit
         
         // コラボレコーディングのパス
         RECORDING_DIR = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first! + "/colloboRecording"
-        
+        sampleRate = 48000
+        bufferSize = 4096
+
         
         let audioSession = AVAudioSession.sharedInstance()
         audioSession.requestRecordPermission {[weak self] granted in }
@@ -60,10 +63,8 @@ import AgoraRtcKit
         // agorakit initialize
         guard let agoraAppId = self.commandDelegate.settings["agora-app-id"] as? String else {return}
         agoraKit = AgoraRtcEngineKit.sharedEngine(withAppId: agoraAppId, delegate: self)
-        
         agoraMediaDataPlugin = AgoraMediaDataPlugin(agoraKit: agoraKit)
-        
-        agoraMediaDataPlugin?.registerAudioRawDataObserver([.recordAudio])
+        agoraMediaDataPlugin?.registerAudioRawDataObserver([.mixedAudio])
         agoraMediaDataPlugin?.audioDelegate = self;
         
         // なければフォルダ生成する
@@ -112,6 +113,8 @@ import AgoraRtcKit
         // audio Profile
         agoraKit.setAudioProfile(.musicHighQualityStereo, scenario: .education)
         agoraKit.enableAudioVolumeIndication(50, smooth: 10, report_vad: true)
+        // 音声のsampleRate と bufferSize 設定
+        agoraKit.setMixedAudioFrameParametersWithSampleRate(sampleRate, samplesPerCall: bufferSize)
         // uid は agora の user id を示している
         // 0 の場合は、success callback に uid が発行されて帰ってくる
         agoraKit.joinChannel(byToken: nil, channelId: roomId, info: nil, uid: 0, joinSuccess: { [weak self] (id, uid, elapsed) in
@@ -156,10 +159,15 @@ import AgoraRtcKit
         }
         
         isRecording = true
-        agoraKit.startAudioRecording(RECORDING_DIR + "/temp.wav", sampleRate: 44100, quality: .high)
-        
-        let result = CDVPluginResult(status: CDVCommandStatus_OK)
-         commandDelegate.send(result, callbackId: command.callbackId)
+        agoraKit.startAudioRecording(RECORDING_DIR + "/temp.wav", sampleRate: sampleRate, quality: .high)
+                
+        // 問題なければ result
+        let resultData = [
+            "sampleRate": sampleRate,
+            "bufferSize": bufferSize
+        ]
+        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: resultData as [AnyHashable : Any])
+        self.commandDelegate.send(result, callbackId:command.callbackId)
     }
     //　一時停止
     @objc func pauseRecording(_ command: CDVInvokedUrlCommand) {
@@ -188,7 +196,8 @@ import AgoraRtcKit
             return
         }
         isRecording = true
-        agoraKit.startAudioRecording(RECORDING_DIR + "/temp.wav", sampleRate: 44100, quality: .high)
+        agoraKit.startAudioRecording(RECORDING_DIR + "/temp.wav", sampleRate: sampleRate, quality: .high)
+        
         let result = CDVPluginResult(status: CDVCommandStatus_OK)
         commandDelegate.send(result, callbackId: command.callbackId)
     }
@@ -592,21 +601,32 @@ import AgoraRtcKit
 
 // 随時波形取得用の拡張
 extension CDVRoomRecording: AgoraAudioDataPluginDelegate {
-    func mediaDataPlugin(_ mediaDataPlugin: AgoraMediaDataPlugin, didRecord audioRawData: AgoraAudioRawData) -> AgoraAudioRawData {
+    func mediaDataPlugin(_ mediaDataPlugin: AgoraMediaDataPlugin, didMixedAudioRawData audioRawData: AgoraAudioRawData) -> AgoraAudioRawData {
         // レコーディング中のみ buffer を送る
         if (!isRecording) {return audioRawData}
         // callbackIdがあれば送る
         if let callbackId = pushBufferCallbackId {
-            let buffer = Array(UnsafeBufferPointer(start: audioRawData.buffer, count:Int(audioRawData.bufferLength)))
-            let data = [
-                "buffer": buffer
-            ] as [String : Any]
-            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+
+            let bytesLength = Int(audioRawData.samples * audioRawData.bytesPerSample * audioRawData.channels)
+            let int16array = Array(UnsafeRawBufferPointer.init(start: audioRawData.buffer, count: bytesLength).bindMemory(to: Int16.self))
+            
+            var maxVolume = 0
+            for int16 in int16array {
+                let volume = abs(Int(int16))
+                if (volume > maxVolume) {
+                    maxVolume = volume
+                }
+            }
+
+            // ネイティブで最大音量を処理したので一つだけの配列を生成
+            let sendData: [Float] = [Float(maxVolume) / Float(-INT16_MIN)]
+            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: sendData)
             result?.keepCallback = true
             commandDelegate.send(result, callbackId: callbackId)
         }
         return audioRawData
     }
+    
 }
 
 // agora delegate
