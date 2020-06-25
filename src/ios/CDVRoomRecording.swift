@@ -476,7 +476,7 @@ import AgoraRtcKit
                 return
             }
             let bufferData = Data(buffer: UnsafeMutableBufferPointer<Float>(start:floatChannelData[0], count: nframe))
-            let pcmBufferPath = URL(fileURLWithPath: RECORDING_DIR + "/recorded.wav")
+            let pcmBufferPath = URL(fileURLWithPath: RECORDING_DIR + "/temppcmbuffer")
             try bufferData.write(to: pcmBufferPath)
             let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: pcmBufferPath.absoluteString)
             self.commandDelegate.send(result, callbackId: command.callbackId)
