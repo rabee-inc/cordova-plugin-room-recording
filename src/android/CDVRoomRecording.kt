@@ -51,6 +51,7 @@ class CDVRoomRecording : CordovaPlugin() {
     private var leaveRoomCallback: CallbackContext? = null
     private var pushVolumeCallback: CallbackContext? = null
     private var pushSpeakersVolumeCallback : CallbackContext? = null
+    private var speakerOfflineCallbackContext: CallbackContext? = null
 
     // event handler
     private val rtcEventHandler = object : IRtcEngineEventHandler() {
@@ -93,7 +94,16 @@ class CDVRoomRecording : CordovaPlugin() {
             }
         }
 
-        override fun onUserOffline(uid: Int, reason: Int) {}
+        override fun onUserOffline(uid: Int, reason: Int) {
+            print("speaker did offline")
+            speakerOfflineCallbackContext?.let {
+                val data = JSONObject()
+                data.put("uid", uid)
+                val result = PluginResult(PluginResult.Status.OK, data)
+                result.keepCallback = true
+                it.sendPluginResult(result)
+            }
+        }
         override fun onUserMuteAudio(uid: Int, muted: Boolean) {}
     }
 
@@ -407,6 +417,7 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
     private fun setOnSpeakerOfflineCallback(callbackContext: CallbackContext): Boolean {
+        speakerOfflineCallbackContext = callbackContext
         return true
     }
 
