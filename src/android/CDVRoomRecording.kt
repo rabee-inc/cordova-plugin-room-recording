@@ -1,11 +1,15 @@
 package jp.rabee
 
 import android.content.pm.PackageManager
-import androidx.core.app.ActivityCompat
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.otaliastudios.transcoder.Transcoder
+import com.otaliastudios.transcoder.TranscoderListener
+import com.otaliastudios.transcoder.engine.TrackType
+import com.otaliastudios.transcoder.sink.DefaultDataSink
+import com.otaliastudios.transcoder.strategy.DefaultAudioStrategy
 import io.agora.rtc.Constants
-import io.agora.rtc.Constants.AUDIO_RECORDING_QUALITY_MEDIUM
 import io.agora.rtc.IRtcEngineEventHandler
 import io.agora.rtc.RtcEngine
 import nl.bravobit.ffmpeg.ExecuteBinaryResponseHandler
@@ -14,6 +18,16 @@ import org.apache.cordova.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.math.RoundingMode
+import java.nio.charset.Charset
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.ArrayList
+
 
 class CDVRoomRecording : CordovaPlugin() {
     companion object {
@@ -30,6 +44,9 @@ class CDVRoomRecording : CordovaPlugin() {
 
     // root フォルダーのチェック
     private var RECORDING_DIR = ""
+    private var recordingDir: File? = null
+    private var recordedFile: File? = null
+
     private var SAMPLE_RATE = 44100
 
     //  callback
@@ -37,6 +54,8 @@ class CDVRoomRecording : CordovaPlugin() {
     private var leaveRoomCallback: CallbackContext? = null
     private var pushVolumeCallback: CallbackContext? = null
     private var pushSpeakersVolumeCallback : CallbackContext? = null
+    private var compressProgressCallbackContext: CallbackContext? = null
+    private var speakerOfflineCallbackContext: CallbackContext? = null
 
     // event handler
     private val rtcEventHandler = object : IRtcEngineEventHandler() {
@@ -79,7 +98,16 @@ class CDVRoomRecording : CordovaPlugin() {
             }
         }
 
-        override fun onUserOffline(uid: Int, reason: Int) {}
+        override fun onUserOffline(uid: Int, reason: Int) {
+            print("speaker did offline")
+            speakerOfflineCallbackContext?.let {
+                val data = JSONObject()
+                data.put("uid", uid)
+                val result = PluginResult(PluginResult.Status.OK, data)
+                result.keepCallback = true
+                it.sendPluginResult(result)
+            }
+        }
         override fun onUserMuteAudio(uid: Int, muted: Boolean) {}
     }
 
@@ -114,6 +142,9 @@ class CDVRoomRecording : CordovaPlugin() {
             }
 
             RECORDING_DIR = cordova.context.filesDir.absolutePath + "/colloboRecording";
+            recordingDir = File(RECORDING_DIR)
+            recordedFile = File(RECORDING_DIR + "/recorded.wav")
+
         }
     }
 
@@ -156,7 +187,8 @@ class CDVRoomRecording : CordovaPlugin() {
                 result = this.resumeRecording(context)
             }
             "split" -> {
-                result = this.split(context)
+                val second = data.getString(0).toFloat()
+                result = this.split(second, context)
             }
             "export" -> {
                 result = this.export(context)
@@ -241,7 +273,7 @@ class CDVRoomRecording : CordovaPlugin() {
 
         isRecording = true
         // 録音前にすでに録音されているものがあれば削除する
-        val recordedDir = File(RECORDING_DIR + "recorded.wav")
+        val recordedDir = File(RECORDING_DIR + "/recorded.wav")
         if (recordedDir.exists()) {
             recordedDir.delete()
         }
@@ -300,22 +332,220 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
     // 音声操作系
-    private fun split(callbackContext: CallbackContext): Boolean {
-        return true
+    private fun split(second: Float, callbackContext: CallbackContext): Boolean {
+        // guard する
+        val inputFile = recordedFile?.also { print(it.absolutePath) } ?: run {
+            // file が無い
+            val p = PluginResult(PluginResult.Status.ERROR, "have not been recorded yet")
+            callbackContext.sendPluginResult(p)
+            return false
+        }
+        val outputDir = recordingDir?.also { print(it.absolutePath) } ?: run {
+            // folder が無い
+            return false
+        }
+
+        val outputFile = File(RECORDING_DIR + "tempSplitAudio.wav")
+
+        val commands = ArrayList<String>()
+        commands.add("-ss");
+        commands.add("0");
+        commands.add("-i");
+        commands.add(inputFile.absolutePath);
+        // ms
+        val ms = second * 1000
+        val bd = ms.toBigDecimal().setScale(0, RoundingMode.DOWN)
+        val plainTime = bd.toInt()
+        // timeformat convert
+        val formatter = SimpleDateFormat("HH:mm:ss.SSS")
+        formatter.timeZone = TimeZone.getTimeZone("GMT")
+        val timeFormatted = formatter.format(plainTime)
+        commands.add("-t")
+        commands.add(timeFormatted)
+        commands.add(outputFile.absolutePath)
+        // ffmpeg
+        val ffmpeg = FFmpeg.getInstance(cordova.context)
+        val command = commands.toTypedArray()
+        if (ffmpeg.isSupported) {
+            ffmpeg.execute(command, object: ExecuteBinaryResponseHandler() {
+                override fun onStart() {
+                    super.onStart()
+                    LOG.v(TAG, "start")
+                }
+                override fun onProgress(message: String?) {
+                    super.onProgress(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onFailure(message: String?) {
+                    super.onFailure(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onSuccess(message: String?) {
+                    super.onSuccess(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onFinish() {
+                    super.onFinish()
+                    // file の移管
+                    if (inputFile.exists()) {
+                        inputFile.delete()
+                    }
+                    val newRecordedFile = File(inputFile.absolutePath)
+                    outputFile.renameTo(newRecordedFile)
+
+                    val data = JSONObject()
+                    data.put("absolute_path", "file" + newRecordedFile.absolutePath)
+
+
+                    val r = PluginResult(PluginResult.Status.OK, data)
+                    callbackContext.sendPluginResult(r)
+                }
+            })
+        }
+                return true
     }
+    // recorded file へのパスを返す
     private fun export(callbackContext: CallbackContext): Boolean {
+        recordedFile?.let {
+            if (it.exists()) {
+                val data = JSONObject()
+                data.put("absolute_path", "file://" + it.absolutePath);
+                val p = PluginResult(PluginResult.Status.OK, data)
+                callbackContext.sendPluginResult(p)
+            }
+            else {
+                //TODO: not found file error handling
+            }
+        }
         return true
     }
+    // 圧縮して返す (.aac)
     private fun exportWithCompression(callbackContext: CallbackContext): Boolean {
+        // guard する
+        val inputFile = recordedFile?.also { print(it.absolutePath) } ?: run {
+            // file が無い
+            val p = PluginResult(PluginResult.Status.ERROR, "have not been recorded yet")
+            callbackContext.sendPluginResult(p)
+            return false
+        }
+        val outputDir = recordingDir?.also { print(it.absolutePath) } ?: run {
+            // folder が無い
+            return false
+        }
+
+        if (inputFile.exists()) {
+            // 時間のかかる処理なので thread を分ける
+            cordova.threadPool.execute {
+                    // compressed.acc ファイルを作成して、そいつを返してやる
+                    val outputFile = File.createTempFile("compressed", ".aac", outputDir)
+                    val sink = DefaultDataSink(outputFile.absolutePath)
+                    val strategy = DefaultAudioStrategy.builder().channels(1).sampleRate(SAMPLE_RATE).build()
+                    Transcoder.into(sink)
+                            .addDataSource(TrackType.AUDIO, inputFile.path)
+                            .setAudioTrackStrategy(strategy)
+                            .setListener(object: TranscoderListener {
+                                // 進行中
+                                override fun onTranscodeProgress(progress: Double) {
+                                    compressProgressCallbackContext?.let {
+                                        val result = PluginResult(PluginResult.Status.OK, (BigDecimal.valueOf(progress).setScale(3, RoundingMode.HALF_UP)).toPlainString())
+                                        result.keepCallback = true
+                                        it.sendPluginResult(result)
+
+                                    }
+                                }
+                                // 完了
+                                override fun onTranscodeCompleted(successCode: Int) {
+                                    val data = JSONObject()
+                                    data.put("absolute_path", "file://" + outputFile.absoluteFile)
+                                    val result = PluginResult(PluginResult.Status.OK, data)
+                                    callbackContext.sendPluginResult(result)
+                                }
+                                // 失敗
+                                override fun onTranscodeFailed(exception: Throwable) {
+                                    callbackContext.error(exception.localizedMessage)
+                                }
+                                // キャンセル
+                                override fun onTranscodeCanceled() {
+                                    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                                }
+                            })
+
+            }
+
+        }
+        else {
+            // error
+            val p = PluginResult(PluginResult.Status.OK, "not found recorded file")
+            callbackContext.sendPluginResult(p)
+        }
+
         return true
     }
+    // 波形を取得する関数
     private fun getWaveForm(callbackContext: CallbackContext): Boolean {
+        val tempWaveFormFile =  File(RECORDING_DIR + "temppcmbuffer")
+        if (!tempWaveFormFile.parentFile.exists()) {
+            tempWaveFormFile.parentFile.mkdir()
+        }
+
+        val inputFile = recordedFile?.also {} ?: run {
+            return false
+        }
+
+        cordova.threadPool.execute {
+            val input = FileInputStream(inputFile)
+            input.skip(36)
+            val chunkID = ByteArray(4)
+            input.read(chunkID)
+            if (String(chunkID, Charset.forName("UTF-8")) == "LIST") {
+
+                val chunkSize = ByteArray(4)
+                input.read(chunkSize)
+                val chunkSizeInt: Int = chunkSize[0].toInt() + (chunkSize[1].toInt() shl 8) + (chunkSize[2].toInt() shl 16) + (chunkSize[3].toInt() shl 24)
+                input.skip(chunkSizeInt + 4 + 4.toLong())
+            }
+            else {
+                input.skip(4)
+            }
+
+            val data = ByteArray(input.available())
+            input.read(data)
+            input.close()
+
+            try {
+                val output = FileOutputStream(tempWaveFormFile)
+                output.write(data)
+                output.close()
+                callbackContext.success("file://" + tempWaveFormFile.absolutePath)
+            }
+            catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+        }
+
         return true
     }
+    // recordig file があるのかどうか？
     private fun hasRecordedFile(callbackContext: CallbackContext): Boolean {
+        recordedFile?.let {
+            val p = PluginResult(PluginResult.Status.OK,  it.exists())
+            callbackContext.sendPluginResult(p)
+        }
         return true
     }
+    // recording したファイルへのパスを返す
     private fun getRecordedFile(callbackContext: CallbackContext): Boolean {
+        recordedFile?.let {
+            if (it.exists()) {
+                val data = JSONObject()
+                data.put("absolute_path", "file://" + it.absolutePath);
+                val p = PluginResult(PluginResult.Status.OK, data)
+                callbackContext.sendPluginResult(p)
+            }
+            else {
+                //TODO: not found file error handling
+            }
+        }
         return true
     }
     // マイクスピーカー操作系
@@ -393,6 +623,7 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
     private fun setOnSpeakerOfflineCallback(callbackContext: CallbackContext): Boolean {
+        speakerOfflineCallbackContext = callbackContext
         return true
     }
 
