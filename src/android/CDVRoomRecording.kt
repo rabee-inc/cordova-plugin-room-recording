@@ -1,9 +1,9 @@
 package jp.rabee
 
 import android.content.pm.PackageManager
-import android.support.v4.app.ActivityCompat
-import android.support.v4.content.ContextCompat
+import androidx.core.app.ActivityCompat
 import android.util.Log
+import androidx.core.content.ContextCompat
 import io.agora.rtc.Constants
 import io.agora.rtc.Constants.AUDIO_RECORDING_QUALITY_MEDIUM
 import io.agora.rtc.IRtcEngineEventHandler
@@ -35,6 +35,9 @@ class CDVRoomRecording : CordovaPlugin() {
     //  callback
     private var joinRoomCallback: CallbackContext? = null
     private var leaveRoomCallback: CallbackContext? = null
+    private var pushVolumeCallback: CallbackContext? = null
+    private var pushSpeakersVolumeCallback : CallbackContext? = null
+
     // event handler
     private val rtcEventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
@@ -55,10 +58,44 @@ class CDVRoomRecording : CordovaPlugin() {
                 it?.sendPluginResult(p)
             }
         }
+
+        // 音量の取得
+        override fun onAudioVolumeIndication(speakers: Array<out AudioVolumeInfo>?, totalVolume: Int) {
+            // レコーディング中はこっちが呼ばれる
+            pushVolumeCallback?.let {
+                if (isRecording) {
+                    val data = buildSpeakerData(speakers, totalVolume)
+                    val result = PluginResult(PluginResult.Status.OK, data)
+                    result.keepCallback = true
+                    it.sendPluginResult(result)
+                }
+            }
+            // レコーディングしてなくても呼ばれる
+            pushSpeakersVolumeCallback?.let {
+                val data = buildSpeakerData(speakers, totalVolume)
+                val result = PluginResult(PluginResult.Status.OK, data)
+                result.keepCallback = true
+                it.sendPluginResult(result)
+            }
+        }
+
         override fun onUserOffline(uid: Int, reason: Int) {}
         override fun onUserMuteAudio(uid: Int, muted: Boolean) {}
     }
 
+    private fun buildSpeakerData(speakers: Array<out IRtcEngineEventHandler.AudioVolumeInfo>?, totalVolume: Int): JSONObject {
+        val data = JSONObject()
+        val speakersData = speakers?.map {
+            val speaker = JSONObject()
+            speaker.put("room_id", it.channelId)
+            speaker.put("uid", it.uid)
+            speaker.put("volume", it.volume)
+            speaker.put("vad", it.vad)
+        }
+        data.put("total_volume", totalVolume)
+        data.put("speakers", speakers)
+        return data
+    }
     // アプリ起動時に呼ばれる
     override public fun initialize(cordova: CordovaInterface,  webView: CordovaWebView) {
         // mic permissio を確認
@@ -68,6 +105,7 @@ class CDVRoomRecording : CordovaPlugin() {
                 try {
                     agoraRtcEngine = RtcEngine.create(cordova.context, it, this.rtcEventHandler)
                     print(agoraRtcEngine)
+                    agoraRtcEngine?.let {it.enableAudioVolumeIndication(100, 3, false)}
                 } catch (e: Exception) {
                     Log.e(TAG, Log.getStackTraceString(e))
 
@@ -136,14 +174,16 @@ class CDVRoomRecording : CordovaPlugin() {
                 result = this.getRecordedFile(context)
             }
             "setMicEnable" -> {
-                result = this.setMicEnable(context)
+                val data = data.getJSONObject(0)
+                val isEnable = data.getBoolean("isEnable")
+                result = this.setMicEnable(isEnable, context)
             }
             "toggleMicEnable" -> {
                 result = this.toggleMicEnable(context)
             }
             "setSpeakerEnable" -> {
                 val data = data.getJSONObject(0)
-                val isEnable = data.getString("isEnable")
+                val isEnable = data.getBoolean("isEnable")
                 result = this.setSpeakerEnable(isEnable, context)
             }
             "toggleSpeakerEnable" -> {
@@ -161,6 +201,12 @@ class CDVRoomRecording : CordovaPlugin() {
             }
             "setOnSpeakerOfflineCallback" -> {
                 result = this.setOnSpeakerOfflineCallback(context)
+            }
+            "setOnPushBufferCallback" -> {
+                result = this.setOnPushBufferCallback(context)
+            }
+            "setOnSpeakerCallback" -> {
+                result = this.setOnSpeakerCallback(context)
             }
             else -> {
                 // TODO error
@@ -327,9 +373,19 @@ class CDVRoomRecording : CordovaPlugin() {
     }
 
     // イベント登録系統
+
+    // レコーディング中の push volume の callback
     private fun setOnPushVolumeCallback(callbackContext: CallbackContext): Boolean {
+        pushVolumeCallback = callbackContext
         return true
     }
+
+    // レコーディング関係なくくる
+    private fun setOnSpeakerCallback(callbackContext: CallbackContext): Boolean {
+        pushSpeakersVolumeCallback = callbackContext
+        return true
+    }
+
     private fun setOnPushBufferCallback(callbackContext: CallbackContext): Boolean {
         return true
     }
