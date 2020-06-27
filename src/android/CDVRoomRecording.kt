@@ -66,6 +66,7 @@ class CDVRoomRecording : CordovaPlugin() {
                 if (isRecording) {
                     val data = buildSpeakerData(speakers, totalVolume)
                     val result = PluginResult(PluginResult.Status.OK, data)
+                    result.keepCallback = true
                     it.sendPluginResult(result)
                 }
             }
@@ -73,6 +74,7 @@ class CDVRoomRecording : CordovaPlugin() {
             pushSpeakersVolumeCallback?.let {
                 val data = buildSpeakerData(speakers, totalVolume)
                 val result = PluginResult(PluginResult.Status.OK, data)
+                result.keepCallback = true
                 it.sendPluginResult(result)
             }
         }
