@@ -186,7 +186,8 @@ class CDVRoomRecording : CordovaPlugin() {
                 result = this.resumeRecording(context)
             }
             "split" -> {
-                result = this.split(context)
+                val second = data.getString(0).toFloat()
+                result = this.split(second, context)
             }
             "export" -> {
                 result = this.export(context)
