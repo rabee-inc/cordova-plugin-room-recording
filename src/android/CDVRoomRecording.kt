@@ -54,6 +54,7 @@ class CDVRoomRecording : CordovaPlugin() {
     private var leaveRoomCallback: CallbackContext? = null
     private var pushVolumeCallback: CallbackContext? = null
     private var pushSpeakersVolumeCallback : CallbackContext? = null
+    private var compressProgressCallbackContext: CallbackContext? = null
     private var speakerOfflineCallbackContext: CallbackContext? = null
 
     // event handler
@@ -403,10 +404,81 @@ class CDVRoomRecording : CordovaPlugin() {
         }
                 return true
     }
+    // recorded file へのパスを返す
     private fun export(callbackContext: CallbackContext): Boolean {
+        recordedFile?.let {
+            if (it.exists()) {
+                val data = JSONObject()
+                data.put("absolute_path", "file://" + it.absolutePath);
+                val p = PluginResult(PluginResult.Status.OK, data)
+                callbackContext.sendPluginResult(p)
+            }
+            else {
+                //TODO: not found file error handling
+            }
+        }
         return true
     }
+    // 圧縮して返す (.aac)
     private fun exportWithCompression(callbackContext: CallbackContext): Boolean {
+        // guard する
+        val inputFile = recordedFile?.also { print(it.absolutePath) } ?: run {
+            // file が無い
+            val p = PluginResult(PluginResult.Status.ERROR, "have not been recorded yet")
+            callbackContext.sendPluginResult(p)
+            return false
+        }
+        val outputDir = recordingDir?.also { print(it.absolutePath) } ?: run {
+            // folder が無い
+            return false
+        }
+
+        if (inputFile.exists()) {
+            // 時間のかかる処理なので thread を分ける
+            cordova.threadPool.execute {
+                    // compressed.acc ファイルを作成して、そいつを返してやる
+                    val outputFile = File.createTempFile("compressed", ".aac", outputDir)
+                    val sink = DefaultDataSink(outputFile.absolutePath)
+                    val strategy = DefaultAudioStrategy.builder().channels(1).sampleRate(SAMPLE_RATE).build()
+                    Transcoder.into(sink)
+                            .addDataSource(TrackType.AUDIO, inputFile.path)
+                            .setAudioTrackStrategy(strategy)
+                            .setListener(object: TranscoderListener {
+                                // 進行中
+                                override fun onTranscodeProgress(progress: Double) {
+                                    compressProgressCallbackContext?.let {
+                                        val result = PluginResult(PluginResult.Status.OK, (BigDecimal.valueOf(progress).setScale(3, RoundingMode.HALF_UP)).toPlainString())
+                                        result.keepCallback = true
+                                        it.sendPluginResult(result)
+
+                                    }
+                                }
+                                // 完了
+                                override fun onTranscodeCompleted(successCode: Int) {
+                                    val data = JSONObject()
+                                    data.put("absolute_path", "file://" + outputFile.absoluteFile)
+                                    val result = PluginResult(PluginResult.Status.OK, data)
+                                    callbackContext.sendPluginResult(result)
+                                }
+                                // 失敗
+                                override fun onTranscodeFailed(exception: Throwable) {
+                                    callbackContext.error(exception.localizedMessage)
+                                }
+                                // キャンセル
+                                override fun onTranscodeCanceled() {
+                                    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                                }
+                            })
+
+            }
+
+        }
+        else {
+            // error
+            val p = PluginResult(PluginResult.Status.OK, "not found recorded file")
+            callbackContext.sendPluginResult(p)
+        }
+
         return true
     }
     private fun getWaveForm(callbackContext: CallbackContext): Boolean {
