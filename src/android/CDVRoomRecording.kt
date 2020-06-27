@@ -481,7 +481,48 @@ class CDVRoomRecording : CordovaPlugin() {
 
         return true
     }
+    // 波形を取得する関数
     private fun getWaveForm(callbackContext: CallbackContext): Boolean {
+        val tempWaveFormFile =  File(RECORDING_DIR + "temppcmbuffer")
+        if (!tempWaveFormFile.parentFile.exists()) {
+            tempWaveFormFile.parentFile.mkdir()
+        }
+
+        val inputFile = recordedFile?.also {} ?: run {
+            return false
+        }
+
+        cordova.threadPool.execute {
+            val input = FileInputStream(inputFile)
+            input.skip(36)
+            val chunkID = ByteArray(4)
+            input.read(chunkID)
+            if (String(chunkID, Charset.forName("UTF-8")) == "LIST") {
+
+                val chunkSize = ByteArray(4)
+                input.read(chunkSize)
+                val chunkSizeInt: Int = chunkSize[0].toInt() + (chunkSize[1].toInt() shl 8) + (chunkSize[2].toInt() shl 16) + (chunkSize[3].toInt() shl 24)
+                input.skip(chunkSizeInt + 4 + 4.toLong())
+            }
+            else {
+                input.skip(4)
+            }
+
+            val data = ByteArray(input.available())
+            input.read(data)
+            input.close()
+
+            try {
+                val output = FileOutputStream(tempWaveFormFile)
+                output.write(data)
+                output.close()
+                callbackContext.success("file://" + tempWaveFormFile.absolutePath)
+            }
+            catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+        }
+
         return true
     }
     // recordig file があるのかどうか？
