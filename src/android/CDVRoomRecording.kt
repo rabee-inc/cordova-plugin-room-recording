@@ -1,11 +1,15 @@
 package jp.rabee
 
 import android.content.pm.PackageManager
-import androidx.core.app.ActivityCompat
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.otaliastudios.transcoder.Transcoder
+import com.otaliastudios.transcoder.TranscoderListener
+import com.otaliastudios.transcoder.engine.TrackType
+import com.otaliastudios.transcoder.sink.DefaultDataSink
+import com.otaliastudios.transcoder.strategy.DefaultAudioStrategy
 import io.agora.rtc.Constants
-import io.agora.rtc.Constants.AUDIO_RECORDING_QUALITY_MEDIUM
 import io.agora.rtc.IRtcEngineEventHandler
 import io.agora.rtc.RtcEngine
 import nl.bravobit.ffmpeg.ExecuteBinaryResponseHandler
@@ -14,6 +18,16 @@ import org.apache.cordova.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.math.RoundingMode
+import java.nio.charset.Charset
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.ArrayList
+
 
 class CDVRoomRecording : CordovaPlugin() {
     companion object {
