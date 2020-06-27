@@ -44,6 +44,9 @@ class CDVRoomRecording : CordovaPlugin() {
 
     // root フォルダーのチェック
     private var RECORDING_DIR = ""
+    private var recordingDir: File? = null
+    private var recordedFile: File? = null
+
     private var SAMPLE_RATE = 44100
 
     //  callback
@@ -138,6 +141,9 @@ class CDVRoomRecording : CordovaPlugin() {
             }
 
             RECORDING_DIR = cordova.context.filesDir.absolutePath + "/colloboRecording";
+            recordingDir = File(RECORDING_DIR)
+            recordedFile = File(RECORDING_DIR + "/recorded.wav")
+
         }
     }
 
@@ -324,8 +330,77 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
     // 音声操作系
-    private fun split(callbackContext: CallbackContext): Boolean {
-        return true
+    private fun split(second: Float, callbackContext: CallbackContext): Boolean {
+        // guard する
+        val inputFile = recordedFile?.also { print(it.absolutePath) } ?: run {
+            // file が無い
+            val p = PluginResult(PluginResult.Status.ERROR, "have not been recorded yet")
+            callbackContext.sendPluginResult(p)
+            return false
+        }
+        val outputDir = recordingDir?.also { print(it.absolutePath) } ?: run {
+            // folder が無い
+            return false
+        }
+
+        val outputFile = File(RECORDING_DIR + "tempSplitAudio.wav")
+
+        val commands = ArrayList<String>()
+        commands.add("-ss");
+        commands.add("0");
+        commands.add("-i");
+        commands.add(inputFile.absolutePath);
+        // ms
+        val ms = second * 1000
+        val bd = ms.toBigDecimal().setScale(0, RoundingMode.DOWN)
+        val plainTime = bd.toInt()
+        // timeformat convert
+        val formatter = SimpleDateFormat("HH:mm:ss.SSS")
+        formatter.timeZone = TimeZone.getTimeZone("GMT")
+        val timeFormatted = formatter.format(plainTime)
+        commands.add("-t")
+        commands.add(timeFormatted)
+        commands.add(outputFile.absolutePath)
+        // ffmpeg
+        val ffmpeg = FFmpeg.getInstance(cordova.context)
+        val command = commands.toTypedArray()
+        if (ffmpeg.isSupported) {
+            ffmpeg.execute(command, object: ExecuteBinaryResponseHandler() {
+                override fun onStart() {
+                    super.onStart()
+                    LOG.v(TAG, "start")
+                }
+                override fun onProgress(message: String?) {
+                    super.onProgress(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onFailure(message: String?) {
+                    super.onFailure(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onSuccess(message: String?) {
+                    super.onSuccess(message)
+                    LOG.v(TAG, message)
+                }
+                override fun onFinish() {
+                    super.onFinish()
+                    // file の移管
+                    if (inputFile.exists()) {
+                        inputFile.delete()
+                    }
+                    val newRecordedFile = File(inputFile.absolutePath)
+                    outputFile.renameTo(newRecordedFile)
+
+                    val data = JSONObject()
+                    data.put("absolute_path", "file" + newRecordedFile.absolutePath)
+
+
+                    val r = PluginResult(PluginResult.Status.OK, data)
+                    callbackContext.sendPluginResult(r)
+                }
+            })
+        }
+                return true
     }
     private fun export(callbackContext: CallbackContext): Boolean {
         return true
