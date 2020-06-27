@@ -22,6 +22,8 @@ class CDVRoomRecording : CordovaPlugin() {
 
     private val PERMISSION_REQ_ID_RECORD_AUDIO = 22
     private var isRecording = false
+    private var isEnableSpeaker = false
+    private var micEnable = false
 
     lateinit var context: CallbackContext
     private var agoraRtcEngine: RtcEngine? = null
@@ -140,7 +142,9 @@ class CDVRoomRecording : CordovaPlugin() {
                 result = this.toggleMicEnable(context)
             }
             "setSpeakerEnable" -> {
-                result = this.setSpeakerEnable(context)
+                val data = data.getJSONObject(0)
+                val isEnable = data.getString("isEnable")
+                result = this.setSpeakerEnable(isEnable, context)
             }
             "toggleSpeakerEnable" -> {
                 result = this.toggleSpeakerEnable(context)
@@ -203,7 +207,7 @@ class CDVRoomRecording : CordovaPlugin() {
         callbackContext.sendPluginResult(p)
         return true
     }
-    // TODO: pause時には波形の合成を行う
+
     private fun pauseRecording(callbackContext: CallbackContext): Boolean {
         if (!isRecording) {
             // スタートしていないのでエラーを返す
@@ -237,7 +241,6 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
 
-    // TODO: stop時にも波形の合成を行うが、基本的にファイルが消えるので
     private fun stopRecording(callbackContext: CallbackContext): Boolean {
         if (!isRecording) {
             // スタートしてないのでエラーを返す
@@ -270,18 +273,59 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
     // マイクスピーカー操作系
-    private fun setMicEnable(callbackContext: CallbackContext): Boolean {
+    // mic の on/off
+    private fun setMicEnable(isEnable: Boolean, callbackContext: CallbackContext): Boolean {
+        agoraRtcEngine?.let {
+            micEnable = isEnable
+            it.muteLocalAudioStream(micEnable)
+            val data = JSONObject()
+            data.put("micEnable", micEnable)
+            val p = PluginResult(PluginResult.Status.OK, data)
+            callbackContext.sendPluginResult(p)
+            return true
+        }
         return true
     }
+    // mic の on/off のtoggle
     private fun toggleMicEnable(callbackContext: CallbackContext): Boolean {
+        agoraRtcEngine?.let {
+            micEnable = !micEnable
+            it.muteLocalAudioStream(micEnable)
+            val data = JSONObject()
+            data.put("micEnable", micEnable)
+            val p = PluginResult(PluginResult.Status.OK, data)
+            callbackContext.sendPluginResult(p)
+            return true
+        }
         return true
     }
-    private fun setSpeakerEnable(callbackContext: CallbackContext): Boolean {
-        return true
+    // スピーカーの on/off
+    private fun setSpeakerEnable(isEnable: Boolean, callbackContext: CallbackContext): Boolean {
+        agoraRtcEngine?.let { engine ->
+            isEnableSpeaker = isEnable
+            engine.setEnableSpeakerphone(isEnableSpeaker)
+            val data = JSONObject()
+            data.put("speakerEnable", isEnableSpeaker)
+            val p = PluginResult(PluginResult.Status.OK, data)
+            callbackContext.sendPluginResult(p)
+            return true
+        }
+        return false
     }
+    // スピーカーの on/off トグル
     private fun toggleSpeakerEnable(callbackContext: CallbackContext): Boolean {
-        return true
+        agoraRtcEngine?.let { engine ->
+            isEnableSpeaker = !isEnableSpeaker
+            engine.setEnableSpeakerphone(isEnableSpeaker)
+            val data = JSONObject()
+            data.put("speakerEnable", isEnableSpeaker)
+            val p = PluginResult(PluginResult.Status.OK, data)
+            callbackContext.sendPluginResult(p)
+            return true
+        }
+        return false
     }
+
     // イベント登録系統
     private fun setOnPushVolumeCallback(callbackContext: CallbackContext): Boolean {
         return true
