@@ -272,7 +272,7 @@ class CDVRoomRecording : CordovaPlugin() {
 
         isRecording = true
         // 録音前にすでに録音されているものがあれば削除する
-        val recordedDir = File(RECORDING_DIR + "recorded.wav")
+        val recordedDir = File(RECORDING_DIR + "/recorded.wav")
         if (recordedDir.exists()) {
             recordedDir.delete()
         }
