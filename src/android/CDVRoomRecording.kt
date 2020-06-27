@@ -1,5 +1,6 @@
 package jp.rabee
 
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
@@ -29,7 +30,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 
-class CDVRoomRecording : CordovaPlugin() {
+class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsResultCallback {
     companion object {
         protected val TAG = "CDVRoomRecording"
     }
@@ -48,6 +49,7 @@ class CDVRoomRecording : CordovaPlugin() {
     private var recordedFile: File? = null
 
     private var SAMPLE_RATE = 44100
+    private var BUFFER_SIZE = 4096
 
     //  callback
     private var joinRoomCallback: CallbackContext? = null
@@ -113,39 +115,48 @@ class CDVRoomRecording : CordovaPlugin() {
 
     private fun buildSpeakerData(speakers: Array<out IRtcEngineEventHandler.AudioVolumeInfo>?, totalVolume: Int): JSONObject {
         val data = JSONObject()
-        val speakersData = speakers?.map {
+        val speakersData = JSONArray()
+        speakers?.forEach {
             val speaker = JSONObject()
             speaker.put("room_id", it.channelId)
             speaker.put("uid", it.uid)
             speaker.put("volume", it.volume)
             speaker.put("vad", it.vad)
+            speakersData.put(speaker)
         }
+
+
         data.put("total_volume", totalVolume)
-        data.put("speakers", speakers)
+        data.put("speakers", speakersData)
         return data
     }
+
     // アプリ起動時に呼ばれる
     override public fun initialize(cordova: CordovaInterface,  webView: CordovaWebView) {
         // mic permissio を確認
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)) {
-            val agoraAppId = preferences.getString("agora-app-id", null);
-            agoraAppId.let { it
-                try {
-                    agoraRtcEngine = RtcEngine.create(cordova.context, it, this.rtcEventHandler)
-                    print(agoraRtcEngine)
-                    agoraRtcEngine?.let {it.enableAudioVolumeIndication(100, 3, false)}
-                } catch (e: Exception) {
-                    Log.e(TAG, Log.getStackTraceString(e))
+        checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)
 
-                    throw RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e))
-                }
+        val agoraAppId = preferences.getString("agora-app-id", null);
+        agoraAppId.let { it
+            try {
+                agoraRtcEngine = RtcEngine.create(cordova.context, it, this.rtcEventHandler)
+                print(agoraRtcEngine)
+                agoraRtcEngine?.let {it.enableAudioVolumeIndication(50, 3, false)}
+            } catch (e: Exception) {
+                Log.e(TAG, Log.getStackTraceString(e))
+
+                throw RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e))
             }
-
-            RECORDING_DIR = cordova.context.filesDir.absolutePath + "/colloboRecording";
-            recordingDir = File(RECORDING_DIR)
-            recordedFile = File(RECORDING_DIR + "/recorded.wav")
-
         }
+
+        RECORDING_DIR = cordova.context.filesDir.absolutePath + "/colloboRecording";
+        val dir = File(RECORDING_DIR)
+        // おそらく初回にはフォルダがないのでフォルダ作成する
+        if (!dir.exists()) {
+            dir.mkdir()
+        }
+        recordingDir = File(RECORDING_DIR)
+        recordedFile = File(RECORDING_DIR + "/recorded.wav")
     }
 
     // js 側で関数が実行されるとこの関数がまず発火する
@@ -204,6 +215,9 @@ class CDVRoomRecording : CordovaPlugin() {
             }
             "getRecordedFile" -> {
                 result = this.getRecordedFile(context)
+            }
+            "removeRecordedFile" -> {
+                result = this.removeRecordedFile(context)
             }
             "setMicEnable" -> {
                 val data = data.getJSONObject(0)
@@ -280,7 +294,8 @@ class CDVRoomRecording : CordovaPlugin() {
         agoraRtcEngine?.startAudioRecording(RECORDING_DIR + "/temp.wav",
                 SAMPLE_RATE, Constants.AUDIO_RECORDING_QUALITY_MEDIUM)
         val data = JSONObject()
-        data.put("sampleRate", SAMPLE_RATE);
+        data.put("sampleRate", SAMPLE_RATE)
+        data.put("bufferSize", BUFFER_SIZE)
         val p = PluginResult(PluginResult.Status.OK, data)
         callbackContext.sendPluginResult(p)
         return true
@@ -345,7 +360,7 @@ class CDVRoomRecording : CordovaPlugin() {
             return false
         }
 
-        val outputFile = File(RECORDING_DIR + "tempSplitAudio.wav")
+        val outputFile = File(RECORDING_DIR + "/tempSplitAudio.wav")
 
         val commands = ArrayList<String>()
         commands.add("-ss");
@@ -394,7 +409,7 @@ class CDVRoomRecording : CordovaPlugin() {
                     outputFile.renameTo(newRecordedFile)
 
                     val data = JSONObject()
-                    data.put("absolute_path", "file" + newRecordedFile.absolutePath)
+                    data.put("absolute_path", "file://" + newRecordedFile.absolutePath)
 
 
                     val r = PluginResult(PluginResult.Status.OK, data)
@@ -483,11 +498,10 @@ class CDVRoomRecording : CordovaPlugin() {
     }
     // 波形を取得する関数
     private fun getWaveForm(callbackContext: CallbackContext): Boolean {
-        val tempWaveFormFile =  File(RECORDING_DIR + "temppcmbuffer")
-        if (!tempWaveFormFile.parentFile.exists()) {
-            tempWaveFormFile.parentFile.mkdir()
+        val tempWaveFormFile =  File(RECORDING_DIR + "/temppcmbuffer")
+        if (!tempWaveFormFile.exists()) {
+            tempWaveFormFile.createNewFile()
         }
-
         val inputFile = recordedFile?.also {} ?: run {
             return false
         }
@@ -545,6 +559,16 @@ class CDVRoomRecording : CordovaPlugin() {
             else {
                 //TODO: not found file error handling
             }
+        }
+        return true
+    }
+
+    private fun removeRecordedFile(callbackContext: CallbackContext): Boolean {
+        recordedFile?.let {
+            if (it.exists()) {
+                 it.delete()
+            }
+            callbackContext.success()
         }
         return true
     }
@@ -627,14 +651,16 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
 
+
+
     // パーミッションあるかどうか確認
     private fun checkSelfPermission(permission: String, requestCode: Int): Boolean {
         Log.i(TAG, "checkSelfPermission $permission $requestCode")
         if (ContextCompat.checkSelfPermission(cordova.context,
                         permission) != PackageManager.PERMISSION_GRANTED) {
-
-
             ActivityCompat.requestPermissions(cordova.activity, arrayOf(permission), requestCode)
+
+
 
             return false
         }
@@ -697,7 +723,6 @@ class CDVRoomRecording : CordovaPlugin() {
                     if (recordedFile.exists()) {
                         recordedFile.delete()
                     }
-                    recordedFile.parentFile.mkdir()
                     val newRecordedFile = File(recordedFile.absolutePath)
                     tempOutputFile.renameTo(newRecordedFile)
                     // temp.wav の削除
@@ -711,5 +736,10 @@ class CDVRoomRecording : CordovaPlugin() {
         }
 
 
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+
+        print("hogehgoe")
     }
 }
