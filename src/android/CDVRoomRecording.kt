@@ -484,10 +484,27 @@ class CDVRoomRecording : CordovaPlugin() {
     private fun getWaveForm(callbackContext: CallbackContext): Boolean {
         return true
     }
+    // recordig file があるのかどうか？
     private fun hasRecordedFile(callbackContext: CallbackContext): Boolean {
+        recordedFile?.let {
+            val p = PluginResult(PluginResult.Status.OK,  it.exists())
+            callbackContext.sendPluginResult(p)
+        }
         return true
     }
+    // recording したファイルへのパスを返す
     private fun getRecordedFile(callbackContext: CallbackContext): Boolean {
+        recordedFile?.let {
+            if (it.exists()) {
+                val data = JSONObject()
+                data.put("absolute_path", "file://" + it.absolutePath);
+                val p = PluginResult(PluginResult.Status.OK, data)
+                callbackContext.sendPluginResult(p)
+            }
+            else {
+                //TODO: not found file error handling
+            }
+        }
         return true
     }
     // マイクスピーカー操作系
