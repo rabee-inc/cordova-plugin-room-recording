@@ -220,8 +220,7 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
                 result = this.removeRecordedFile(context)
             }
             "setMicEnable" -> {
-                val data = data.getJSONObject(0)
-                val isEnable = data.getBoolean("isEnable")
+                val isEnable = data.getBoolean(0);
                 result = this.setMicEnable(isEnable, context)
             }
             "toggleMicEnable" -> {
