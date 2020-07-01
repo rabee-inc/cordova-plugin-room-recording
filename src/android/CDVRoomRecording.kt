@@ -64,9 +64,11 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
             super.onJoinChannelSuccess(channel, uid, elapsed)
             joinRoomCallback.let { it
+                val uuid = uid.toUInt()
                 val data = JSONObject()
                 data.put("roomId", channel)
-                data.put("uid", uid)
+                data.put("uid", uuid)
+
                 data.put("elapsed", elapsed)
                 val p = PluginResult(PluginResult.Status.OK, data)
                 it?.sendPluginResult(p)
@@ -103,8 +105,9 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
         override fun onUserOffline(uid: Int, reason: Int) {
             print("speaker did offline")
             speakerOfflineCallbackContext?.let {
+                val uuid = uid.toUInt()
                 val data = JSONObject()
-                data.put("uid", uid)
+                data.put("uid", uuid)
                 val result = PluginResult(PluginResult.Status.OK, data)
                 result.keepCallback = true
                 it.sendPluginResult(result)
