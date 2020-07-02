@@ -59,10 +59,14 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
     private var compressProgressCallbackContext: CallbackContext? = null
     private var speakerOfflineCallbackContext: CallbackContext? = null
 
+
+    private var isJoinRoom = false
+
     // event handler
     private val rtcEventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
             super.onJoinChannelSuccess(channel, uid, elapsed)
+            isJoinRoom = true
             joinRoomCallback.let { it
                 val uuid = uid.toUInt()
                 val data = JSONObject()
@@ -76,6 +80,7 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
         }
         override fun onLeaveChannel(stats: RtcStats?) {
             super.onLeaveChannel(stats)
+            isJoinRoom = false
             leaveRoomCallback.let {
                 val p = PluginResult(PluginResult.Status.OK, true)
                 it?.sendPluginResult(p)
@@ -122,7 +127,7 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
         speakers?.forEach {
             val speaker = JSONObject()
             speaker.put("room_id", it.channelId)
-            speaker.put("uid", it.uid)
+            speaker.put("uid", it.uid.toUInt())
             speaker.put("volume", it.volume)
             speaker.put("vad", it.vad)
             speakersData.put(speaker)
@@ -274,6 +279,11 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
     }
     // 外出
     private fun leaveRoom(callbackContext: CallbackContext): Boolean {
+        if (!isJoinRoom) {
+            val p = PluginResult(PluginResult.Status.OK, true)
+            callbackContext.sendPluginResult(p)
+            return true
+        }
         leaveRoomCallback = callbackContext
         agoraRtcEngine?.leaveChannel()
         return true
