@@ -10,6 +10,7 @@ class RoomRecording {
         this.registerEvents('pushSpeakersVolume', 'setOnSpeakerCallback', params);
         this.registerEvents('changeSpeakersStatus', 'setOnChangeSpeakersStatus', params);
         this.registerEvents('offline', 'setOnSpeakerOfflineCallback', params);
+        this.registerEvents('compressionProgress', 'setOnCompressionProgressCallback', params);
     };
 
     initialize(params) {
