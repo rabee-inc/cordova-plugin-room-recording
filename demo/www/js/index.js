@@ -57,6 +57,14 @@ function onDeviceReady() {
     const getRecordedFileBtn = document.querySelector('.getRecordedFileBtn') 	
     getRecordedFileBtn.addEventListener('click', getRecordedFile);	
 
+    const progress = (e) => {
+        console.log(e) // 0 - 100 の値を返すようにする
+        if (e === 100) {
+            RoomRecording.off(progress);
+        }
+    }
+    
+
     // 音が入ってきたら	
     RoomRecording.on('pushVolume', (data) => {	
         const {total_volume, speakers} = data;	
@@ -71,7 +79,10 @@ function onDeviceReady() {
         console.log(data);	
     });	
     // オフラインの検出	
-    RoomRecording.on('offline', offlineAlert);	
+    RoomRecording.on('offline', offlineAlert);
+
+    // compression progress check
+    RoomRecording.on('compressionProgress', progress);
 }	
 
 // 初期化	

@@ -8,7 +8,7 @@ import AgoraRtcKit
     var speakerStatusChangeCallbackIds: [String] = []
     var stopRecordingCallbackId: String?
     var pauseRecordingCallbackId: String?
-    var commpressProgressCallBackId: String?
+    var compressProgressCallBackId: String?
     var completeCompressionCallbackId: String?
     var completeSplitCallbackId: String?
     var speakerOfflineCallbackIds: [String] = []
@@ -267,9 +267,9 @@ import AgoraRtcKit
                     p = Int(round(session.progress * 100))
                     print(p)
                     r = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: String(p))
-                    if self.commpressProgressCallBackId != nil {
+                    if self.compressProgressCallBackId != nil {
                         r?.keepCallback = true
-                        self.commandDelegate.send(r, callbackId: self.commpressProgressCallBackId)
+                        self.commandDelegate.send(r, callbackId: self.compressProgressCallBackId)
                     }
                 }
             }
@@ -596,6 +596,11 @@ import AgoraRtcKit
     // push buffer の登録
     @objc func setOnPushBufferCallback(_ command: CDVInvokedUrlCommand) {
         pushBufferCallbackId = command.callbackId
+    }
+    
+    // progressの取得
+    @objc func setOnCompressionProgressCallback(_ command: CDVInvokedUrlCommand){
+        compressProgressCallBackId = command.callbackId
     }
 }
 
