@@ -26,4 +26,6 @@
         </edit-config>
     </platform>
     <preference name="agora-app-id" value="sample-id" />
+    <plugin name="cordova-plugin-androidx" spec="https://github.com/dpa99c/cordova-plugin-androidx" />
+    <plugin name="cordova-plugin-androidx-adapter" spec="https://github.com/dpa99c/cordova-plugin-androidx-adapter" />
 </widget>
