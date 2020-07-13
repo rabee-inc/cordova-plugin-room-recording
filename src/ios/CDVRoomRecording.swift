@@ -57,8 +57,6 @@ import AgoraRtcKit
         bufferSize = 4096
 
         
-        let audioSession = AVAudioSession.sharedInstance()
-        audioSession.requestRecordPermission {[weak self] granted in }
         
         // agorakit initialize
         guard let agoraAppId = self.commandDelegate.settings["agora-app-id"] as? String else {return}
