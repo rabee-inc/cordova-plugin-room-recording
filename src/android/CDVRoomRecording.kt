@@ -141,8 +141,7 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
 
     // アプリ起動時に呼ばれる
     override public fun initialize(cordova: CordovaInterface,  webView: CordovaWebView) {
-        // mic permissio を確認
-        checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)
+
 
         val agoraAppId = preferences.getString("agora-app-id", null);
         agoraAppId.let { it
@@ -233,6 +232,9 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
             }
             "toggleMicEnable" -> {
                 result = this.toggleMicEnable(context)
+            }
+            "getMicPermission" -> {
+                result = this.getMicPermission(context)
             }
             "setSpeakerEnable" -> {
                 val data = data.getJSONObject(0)
@@ -678,6 +680,19 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
         }
         return true
     }
+
+    private fun getMicPermission(callbackContext: CallbackContext): Boolean {
+        // mic permission を確認
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)) {
+            val p = PluginResult(PluginResult.Status.OK, true)
+            callbackContext.sendPluginResult(p)
+        } else {
+            val p = PluginResult(PluginResult.Status.ERROR, false);
+            callbackContext.sendPluginResult(p)
+        }
+        return true
+    }
+
 
     private fun mergeRecording(callbackContext: CallbackContext) {
         var commands = ArrayList<String>()
