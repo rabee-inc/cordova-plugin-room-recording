@@ -56,7 +56,7 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
     private var leaveRoomCallback: CallbackContext? = null
     private var pushVolumeCallback: CallbackContext? = null
     private var pushSpeakersVolumeCallback : CallbackContext? = null
-    private var compressProgressCallbackContext: CallbackContext? = null
+    private var compressionProgressCallbackContext: CallbackContext? = null
     private var speakerOfflineCallbackContext: CallbackContext? = null
 
 
@@ -260,6 +260,9 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
             }
             "setOnSpeakerCallback" -> {
                 result = this.setOnSpeakerCallback(context)
+            }
+            "setOnCompressionProgressCallback" -> {
+                result = this.setOnCompressionProgressCallback(context)
             }
             else -> {
                 // TODO error
@@ -473,7 +476,7 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
                             .setListener(object: TranscoderListener {
                                 // 進行中
                                 override fun onTranscodeProgress(progress: Double) {
-                                    compressProgressCallbackContext?.let {
+                                    compressionProgressCallbackContext?.let {
                                         val result = PluginResult(PluginResult.Status.OK, (BigDecimal.valueOf(progress).setScale(3, RoundingMode.HALF_UP)).toPlainString())
                                         result.keepCallback = true
                                         it.sendPluginResult(result)
@@ -660,6 +663,10 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
     }
     private fun setOnSpeakerOfflineCallback(callbackContext: CallbackContext): Boolean {
         speakerOfflineCallbackContext = callbackContext
+        return true
+    }
+    private fun setOnCompressionProgressCallback(callbackContext: CallbackContext): Boolean {
+        compressionProgressCallbackContext = callbackContext
         return true
     }
 
