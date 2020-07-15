@@ -678,11 +678,8 @@ class CDVRoomRecording : CordovaPlugin() {
     // パーミッションあるかどうか確認=>なければリクエスト出す
     private fun checkSelfPermission(permission: String, requestCode: Int): Boolean {
         Log.i(TAG, "checkSelfPermission $permission $requestCode")
-        if (ContextCompat.checkSelfPermission(cordova.context,
-                        permission) != PackageManager.PERMISSION_GRANTED) {
-            return false
-        }
-        return true
+        return ContextCompat.checkSelfPermission(cordova.context,
+                        permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun getMicPermission(callbackContext: CallbackContext): Boolean {
