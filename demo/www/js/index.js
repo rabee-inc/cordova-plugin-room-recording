@@ -35,6 +35,9 @@ function onDeviceReady() {
     const splitBtn = document.querySelector('.splitBtn') 	
     splitBtn.addEventListener('click', split);	
 
+    // getMicPermission
+    const getMicPermissionBtn = document.querySelector('.getMicPermissionBtn') 	
+    getMicPermissionBtn.addEventListener('click', getMicPermission);	
 
     // offlinealert 	
     const offlineAlert = (data) => {
@@ -56,6 +59,7 @@ function onDeviceReady() {
     // getrecordedfile
     const getRecordedFileBtn = document.querySelector('.getRecordedFileBtn') 	
     getRecordedFileBtn.addEventListener('click', getRecordedFile);	
+
 
     const progress = (e) => {
         console.log(e) // 0 - 100 の値を返すようにする
@@ -173,6 +177,13 @@ function getRecordedFile() {
         } else {
             window.alert('ファイル取得に失敗しました');
         }
+    });
+} 
+
+function getMicPermission() {	
+    RoomRecording.getMicPermission().then((v) => {
+        console.log(JSON.stringify(v));
+        window.alert('マイク許可をリクエストしました');
     });
 } 
 

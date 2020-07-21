@@ -30,7 +30,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 
-class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsResultCallback {
+class CDVRoomRecording : CordovaPlugin() {
     companion object {
         protected val TAG = "CDVRoomRecording"
     }
@@ -42,6 +42,7 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
 
     lateinit var context: CallbackContext
     private var agoraRtcEngine: RtcEngine? = null
+    private var agoraInitialized: Boolean = false
 
     // root フォルダーのチェック
     private var RECORDING_DIR = ""
@@ -141,21 +142,11 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
 
     // アプリ起動時に呼ばれる
     override public fun initialize(cordova: CordovaInterface,  webView: CordovaWebView) {
-        // mic permissio を確認
-        checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)
 
-        val agoraAppId = preferences.getString("agora-app-id", null);
-        agoraAppId.let { it
-            try {
-                agoraRtcEngine = RtcEngine.create(cordova.context, it, this.rtcEventHandler)
-                print(agoraRtcEngine)
-                agoraRtcEngine?.let {it.enableAudioVolumeIndication(50, 3, false)}
-            } catch (e: Exception) {
-                Log.e(TAG, Log.getStackTraceString(e))
-
-                throw RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e))
-            }
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)) {
+            initAgora()
         }
+
 
         RECORDING_DIR = cordova.context.filesDir.absolutePath + "/colloboRecording";
         val dir = File(RECORDING_DIR)
@@ -234,6 +225,9 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
             "toggleMicEnable" -> {
                 result = this.toggleMicEnable(context)
             }
+            "getMicPermission" -> {
+                result = this.getMicPermission(context)
+            }
             "setSpeakerEnable" -> {
                 val data = data.getJSONObject(0)
                 val isEnable = data.getBoolean("isEnable")
@@ -269,6 +263,24 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
             }
         }
         return result
+    }
+
+    private  fun initAgora() {
+        if (!agoraInitialized) {
+            val agoraAppId = preferences.getString("agora-app-id", null);
+            agoraAppId.let { it
+                try {
+                    agoraRtcEngine = RtcEngine.create(cordova.context, it, this.rtcEventHandler)
+                    print(agoraRtcEngine)
+                    agoraRtcEngine?.let {it.enableAudioVolumeIndication(50, 3, false)}
+                } catch (e: Exception) {
+                    Log.e(TAG, Log.getStackTraceString(e))
+
+                    throw RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e))
+                }
+            }
+            agoraInitialized = true
+        }
     }
 
     private fun init(callbackContext: CallbackContext): Boolean {
@@ -670,21 +682,42 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
         return true
     }
 
-
-
-    // パーミッションあるかどうか確認
+    // パーミッションあるかどうか確認=>なければリクエスト出す
     private fun checkSelfPermission(permission: String, requestCode: Int): Boolean {
         Log.i(TAG, "checkSelfPermission $permission $requestCode")
-        if (ContextCompat.checkSelfPermission(cordova.context,
-                        permission) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(cordova.activity, arrayOf(permission), requestCode)
+        return ContextCompat.checkSelfPermission(cordova.context,
+                        permission) == PackageManager.PERMISSION_GRANTED
+    }
 
-
-
-            return false
+    private fun getMicPermission(callbackContext: CallbackContext): Boolean {
+        var hasPermission = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO, PERMISSION_REQ_ID_RECORD_AUDIO)
+        // mic permission を確認
+        if (hasPermission) {
+            initAgora()
+        } else {
+            cordova.requestPermissions(this, PERMISSION_REQ_ID_RECORD_AUDIO, arrayOf(android.Manifest.permission.RECORD_AUDIO))
         }
+        val p = PluginResult(PluginResult.Status.OK, hasPermission)
+        callbackContext.sendPluginResult(p)
         return true
     }
+
+    override fun onRequestPermissionResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        var isPermitted = grantResults[0] == 0
+        if (isPermitted) {
+            initAgora()
+        } else {
+            try {
+                RtcEngine.destroy()
+            } catch (e: Exception) {
+                Log.e(TAG, Log.getStackTraceString(e))
+
+                throw RuntimeException("NEED TO check rtc sdk init fatal error\n" + Log.getStackTraceString(e))
+            }
+            agoraInitialized = false
+        }
+    }
+
 
     private fun mergeRecording(callbackContext: CallbackContext) {
         var commands = ArrayList<String>()
@@ -757,8 +790,4 @@ class CDVRoomRecording : CordovaPlugin(), ActivityCompat.OnRequestPermissionsRes
 
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-
-        print("hogehgoe")
-    }
 }
