@@ -133,7 +133,7 @@ class RoomRecording {
         this._listener[event].push(callback);
     };
     off(event, callback) {
-        if (!this._listener[event]) this._listeners[event] = [];
+        this._listener[event] = this._listener[event] || [];
 
         if (event && typeof callback === 'function') {
             var i = this._listener[event].indexOf(callback);
