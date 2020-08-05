@@ -462,6 +462,21 @@ import AgoraRtcKit
         }
     }
     
+    // 1 チャンネルの最大音量を取得
+    private func getMaxVolume(buffer: AVAudioPCMBuffer) -> Float {
+        var maxVolume: Float = 0
+        var n = 0
+        let data = buffer.floatChannelData![0]
+        let length = Int(buffer.frameLength)
+        while n < length {
+            let volume = abs(data[n])
+            if (volume > maxVolume) {
+                maxVolume = volume
+            }
+            n += 1
+        }
+        return maxVolume
+    }
     
     // 波形を取得する
     @objc func getWaveForm(_ command: CDVInvokedUrlCommand) {
@@ -474,19 +489,30 @@ import AgoraRtcKit
             return
         }
         do {
+            
             let audioFile = try AVAudioFile(forReading: path)
             let nframe = Int(audioFile.length)
-            let PCMBuffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: AVAudioFrameCount(nframe))!
-            try audioFile.read(into: PCMBuffer)
-            guard let floatChannelData = PCMBuffer.floatChannelData else {
-                // TODO エラーハンドリング
-                return
+            
+            var output: [Float] = []
+            
+            // 1ループごとに読み込むフレーム数
+            let frameCapacity = AVAudioFrameCount(bufferSize)
+            // 最後までループする
+            while audioFile.framePosition < nframe {
+                let PCMBuffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: frameCapacity)!
+                // read すると framePosition が進む
+                try audioFile.read(into: PCMBuffer, frameCount: PCMBuffer.frameCapacity)
+                // 最大音量を配列に追加する
+                output.append(getMaxVolume(buffer: PCMBuffer))
             }
-            let bufferData = Data(buffer: UnsafeMutableBufferPointer<Float>(start:floatChannelData[0], count: nframe))
+            
+            // ファイル書き込み
+            let bufferData = Data(buffer: UnsafeRawBufferPointer.init(start: output, count: output.count * 4).bindMemory(to: Float.self))
             let pcmBufferPath = URL(fileURLWithPath: RECORDING_DIR + "/temppcmbuffer")
             try bufferData.write(to: pcmBufferPath)
             let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: pcmBufferPath.absoluteString)
             self.commandDelegate.send(result, callbackId: command.callbackId)
+            
         } catch let err {
             let result = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: "get wave form error: \(err)")
             commandDelegate.send(result, callbackId: command.callbackId)
