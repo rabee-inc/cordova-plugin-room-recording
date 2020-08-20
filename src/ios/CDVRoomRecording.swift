@@ -106,7 +106,9 @@ import AgoraRtcKit
     @objc func joinRoom(_ command: CDVInvokedUrlCommand) {
         guard
             let data = command.argument(at: 0) as? [String:Any],
-            let roomId = data["room_id"] as? String else {return}
+            let roomId = data["room_id"] as? String,
+            let user_number = data["user_number"] as? UInt else {return}
+            
         
         // audio Profile
         agoraKit.setAudioProfile(.musicHighQualityStereo, scenario: .education)
@@ -115,7 +117,7 @@ import AgoraRtcKit
         agoraKit.setMixedAudioFrameParametersWithSampleRate(sampleRate, samplesPerCall: bufferSize)
         // uid は agora の user id を示している
         // 0 の場合は、success callback に uid が発行されて帰ってくる
-        agoraKit.joinChannel(byToken: nil, channelId: roomId, info: nil, uid: 0, joinSuccess: { [weak self] (id, uid, elapsed) in
+        agoraKit.joinChannel(byToken: nil, channelId: roomId, info: nil, uid: user_number, joinSuccess: { [weak self] (id, uid, elapsed) in
             guard let self = self else {return}
             let data = [
                 "roomId": id,
