@@ -169,7 +169,7 @@ class CDVRoomRecording : CordovaPlugin() {
             "joinRoom" -> {
                 val data = data.getJSONObject(0)
                 val roomId = data.getString("room_id")
-                val uid = data.getInt("uid")
+                val uid = data.getString("uid")
 
                 // error
                 result = if (roomId != null && uid != null) {
@@ -289,9 +289,9 @@ class CDVRoomRecording : CordovaPlugin() {
         return true
     }
     // 参加
-    private fun joinRoom(roomId: String, uid: Int, callbackContext: CallbackContext): Boolean {
+    private fun joinRoom(roomId: String, uid: String, callbackContext: CallbackContext): Boolean {
         joinRoomCallback = callbackContext
-        agoraRtcEngine?.joinChannel(null, roomId,"", uid)
+        agoraRtcEngine?.joinChannelWithUserAccount(null, roomId,uid)
         return true
     }
     // 外出
