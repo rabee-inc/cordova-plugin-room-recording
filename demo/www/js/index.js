@@ -100,8 +100,8 @@ function initialize() {
 function createRoom () {	
     // const roomId = window.prompt("作成するルームidを入力してください");	
     const roomId = "aaa"
-    const user_number = 12345
-    RoomRecording.joinRoom({room_id: roomId, user_number: user_number}).then((data) => {
+    const uid = 12345
+    RoomRecording.joinRoom({room_id: roomId, uid: uid}).then((data) => {
         console.log(data);	
         window.alert('ルームを作成しました');	
     });	
@@ -110,8 +110,8 @@ function createRoom () {
 function joinRoom () {	
     // const roomId = window.prompt("参加するルームidを入力してください");	
     const roomId = "aaa"	
-    const user_number = 12345
-    RoomRecording.joinRoom({room_id: roomId, user_number: user_number}).then((data) => {	
+    const uid = 12345
+    RoomRecording.joinRoom({room_id: roomId, uid: uid}).then((data) => {	
         console.log(data);
         window.alert('ルームに入室しました');	
     });	
