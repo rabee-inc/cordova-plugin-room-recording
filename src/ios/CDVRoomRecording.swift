@@ -106,8 +106,7 @@ import AgoraRtcKit
     @objc func joinRoom(_ command: CDVInvokedUrlCommand) {
         guard
             let data = command.argument(at: 0) as? [String:Any],
-            let roomId = data["room_id"] as? String,
-            let uid = data["uid"] as? String else {return}
+            let roomId = data["room_id"] as? String else {return}
             
         
         // audio Profile
@@ -115,19 +114,34 @@ import AgoraRtcKit
         agoraKit.enableAudioVolumeIndication(50, smooth: 10, report_vad: true)
         // 音声のsampleRate と bufferSize 設定
         agoraKit.setMixedAudioFrameParametersWithSampleRate(sampleRate, samplesPerCall: bufferSize)
-        // uid は agora の user id を示している
-        // 0 の場合は、success callback に uid が発行されて帰ってくる
-        agoraKit.joinChannel(byUserAccount: uid, token: nil, channelId: roomId, joinSuccess: { [weak self] (id, uid, elapsed) in
-            guard let self = self else {return}
-            let data = [
-                "roomId": id,
-                "uid": uid,
-                "elapsed": elapsed
-                ] as [String: Any]
-            print(data)
-            let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
-            self.commandDelegate.send(result, callbackId: command.callbackId)
-        })
+
+        if let uid = data["uid"] as? String {
+            agoraKit.joinChannel(byUserAccount: uid, token: nil, channelId: roomId, joinSuccess: { [weak self] (id, uid, elapsed) in
+                guard let self = self else {return}
+                let data = [
+                    "roomId": id,
+                    "uid": uid,
+                    "elapsed": elapsed
+                    ] as [String: Any]
+                print(data)
+                let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+                self.commandDelegate.send(result, callbackId: command.callbackId)
+            })
+        } else {
+            // uid は agora の user id を示している
+            // 0 の場合は、success callback に uid が発行されて帰ってくる
+            agoraKit.joinChannel(byToken: nil, channelId: roomId, info: nil, uid: 0, joinSuccess: { [weak self] (id, uid, elapsed) in
+                guard let self = self else {return}
+                let data = [
+                    "roomId": id,
+                    "uid": uid,
+                    "elapsed": elapsed
+                    ] as [String: Any]
+                print(data)
+                let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
+                self.commandDelegate.send(result, callbackId: command.callbackId)
+            })
+        }
     }
     
     @objc func leaveRoom(_ command: CDVInvokedUrlCommand) {
