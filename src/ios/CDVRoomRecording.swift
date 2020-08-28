@@ -523,7 +523,7 @@ import AgoraRtcKit
             }
             
             // ファイル書き込み
-            let bufferData = Data(buffer: UnsafeRawBufferPointer.init(start: output, count: output.count * 4).bindMemory(to: Float.self))
+            let bufferData = Data(bytes: output, count: output.count * 4)
             let pcmBufferPath = URL(fileURLWithPath: RECORDING_DIR + "/temppcmbuffer")
             try bufferData.write(to: pcmBufferPath)
             let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: pcmBufferPath.absoluteString)
