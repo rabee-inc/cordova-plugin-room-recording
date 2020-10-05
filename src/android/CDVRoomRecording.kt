@@ -230,8 +230,7 @@ class CDVRoomRecording : CordovaPlugin() {
                 result = this.getMicPermission(context)
             }
             "setSpeakerEnable" -> {
-                val data = data.getJSONObject(0)
-                val isEnable = data.getBoolean("isEnable")
+                val isEnable = data.getBoolean(0);
                 result = this.setSpeakerEnable(isEnable, context)
             }
             "toggleSpeakerEnable" -> {
