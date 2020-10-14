@@ -39,6 +39,10 @@ function onDeviceReady() {
     const getMicPermissionBtn = document.querySelector('.getMicPermissionBtn') 	
     getMicPermissionBtn.addEventListener('click', getMicPermission);	
 
+    // getMicPermission
+    const setSpeakerEnableBtn = document.querySelector('.setSpeakerEnableBtn') 	
+    setSpeakerEnableBtn.addEventListener('click', setSpeakerEnable);	
+
     // offlinealert 	
     const offlineAlert = (data) => {
         window.alert('offline', data.uid);
@@ -195,5 +199,12 @@ function hasRecordedFile() {
     RoomRecording.hasRecordedFile().then((v) => {	
         console.log(JSON.stringify(v));	
         window.alert("録音済ファイル有無をチェックしました");
+    });	
+} 
+
+function setSpeakerEnable() {	
+    RoomRecording.setSpeakerEnable(true).then((v) => {	
+        console.log(JSON.stringify(v));	
+        window.alert("set speaker enable");
     });	
 } 
