@@ -1,9 +1,7 @@
 package jp.rabee
 
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.otaliastudios.transcoder.Transcoder
 import com.otaliastudios.transcoder.TranscoderListener
@@ -19,15 +17,19 @@ import org.apache.cordova.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.math.BigDecimal
-import java.math.BigInteger
 import java.math.RoundingMode
-import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
+import jp.rabee.recorder.WavFile
+import jp.rabee.recorder.WavFileException
+import java.io.FileOutputStream
+import java.io.OutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import kotlin.math.abs
+import kotlin.math.ceil
 
 
 class CDVRoomRecording : CordovaPlugin() {
@@ -448,7 +450,7 @@ class CDVRoomRecording : CordovaPlugin() {
                 }
             })
         }
-                return true
+        return true
     }
     // recorded file へのパスを返す
     private fun export(callbackContext: CallbackContext): Boolean {
@@ -482,39 +484,39 @@ class CDVRoomRecording : CordovaPlugin() {
         if (inputFile.exists()) {
             // 時間のかかる処理なので thread を分ける
             cordova.threadPool.execute {
-                    // compressed.acc ファイルを作成して、そいつを返してやる
-                    val outputFile = File.createTempFile("compressed", ".aac", outputDir)
-                    val sink = DefaultDataSink(outputFile.absolutePath)
-                    val strategy = DefaultAudioStrategy.builder().channels(1).sampleRate(SAMPLE_RATE).build()
-                    Transcoder.into(sink)
-                            .addDataSource(TrackType.AUDIO, inputFile.path)
-                            .setAudioTrackStrategy(strategy)
-                            .setListener(object: TranscoderListener {
-                                // 進行中
-                                override fun onTranscodeProgress(progress: Double) {
-                                    compressionProgressCallbackContext?.let {
-                                        val result = PluginResult(PluginResult.Status.OK, (BigDecimal.valueOf(progress).setScale(3, RoundingMode.HALF_UP)).toPlainString())
-                                        result.keepCallback = true
-                                        it.sendPluginResult(result)
+                // compressed.acc ファイルを作成して、そいつを返してやる
+                val outputFile = File.createTempFile("compressed", ".aac", outputDir)
+                val sink = DefaultDataSink(outputFile.absolutePath)
+                val strategy = DefaultAudioStrategy.builder().channels(1).sampleRate(SAMPLE_RATE).build()
+                Transcoder.into(sink)
+                        .addDataSource(TrackType.AUDIO, inputFile.path)
+                        .setAudioTrackStrategy(strategy)
+                        .setListener(object: TranscoderListener {
+                            // 進行中
+                            override fun onTranscodeProgress(progress: Double) {
+                                compressionProgressCallbackContext?.let {
+                                    val result = PluginResult(PluginResult.Status.OK, (BigDecimal.valueOf(progress).setScale(3, RoundingMode.HALF_UP)).toPlainString())
+                                    result.keepCallback = true
+                                    it.sendPluginResult(result)
 
-                                    }
                                 }
-                                // 完了
-                                override fun onTranscodeCompleted(successCode: Int) {
-                                    val data = JSONObject()
-                                    data.put("absolute_path", "file://" + outputFile.absoluteFile)
-                                    val result = PluginResult(PluginResult.Status.OK, data)
-                                    callbackContext.sendPluginResult(result)
-                                }
-                                // 失敗
-                                override fun onTranscodeFailed(exception: Throwable) {
-                                    callbackContext.error(exception.localizedMessage)
-                                }
-                                // キャンセル
-                                override fun onTranscodeCanceled() {
-                                    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-                                }
-                            })
+                            }
+                            // 完了
+                            override fun onTranscodeCompleted(successCode: Int) {
+                                val data = JSONObject()
+                                data.put("absolute_path", "file://" + outputFile.absoluteFile)
+                                val result = PluginResult(PluginResult.Status.OK, data)
+                                callbackContext.sendPluginResult(result)
+                            }
+                            // 失敗
+                            override fun onTranscodeFailed(exception: Throwable) {
+                                callbackContext.error(exception.localizedMessage)
+                            }
+                            // キャンセル
+                            override fun onTranscodeCanceled() {
+                                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                            }
+                        })
 
             }
 
@@ -536,41 +538,53 @@ class CDVRoomRecording : CordovaPlugin() {
         val inputFile = recordedFile?.also {} ?: run {
             return false
         }
-
-        cordova.threadPool.execute {
-            val input = FileInputStream(inputFile)
-            input.skip(36)
-            val chunkID = ByteArray(4)
-            input.read(chunkID)
-            if (String(chunkID, Charset.forName("UTF-8")) == "LIST") {
-
-                val chunkSize = ByteArray(4)
-                input.read(chunkSize)
-                val chunkSizeInt: Int = chunkSize[0].toInt() + (chunkSize[1].toInt() shl 8) + (chunkSize[2].toInt() shl 16) + (chunkSize[3].toInt() shl 24)
-                input.skip(chunkSizeInt + 4 + 4.toLong())
-            }
-            else {
-                input.skip(4)
-            }
-
-            val data = ByteArray(input.available())
-            input.read(data)
-            input.close()
-
+        cordova.getThreadPool().execute(Runnable {
             try {
-                val output = FileOutputStream(tempWaveFormFile)
-                output.write(data)
+                if (!tempWaveFormFile.parentFile.exists()) {
+                    tempWaveFormFile.parentFile.mkdir()
+                }
+                val wavFile: WavFile = WavFile.openWavFile(inputFile)
+                // Get the number of audio channels in the wav file
+                val numChannels: Int = wavFile.getNumChannels()
+                val buffer = IntArray(BUFFER_SIZE * numChannels)
+                val outputBufferNum = ceil(wavFile.getNumFrames().toDouble() / BUFFER_SIZE).toInt()
+                val outputBuffer = ShortArray(outputBufferNum)
+                var outputBufferIndex = 0
+                var framesRead: Int
+                while (true) {
+                    var max = Int.MIN_VALUE
+                    // 波形を読み込む
+                    framesRead = wavFile.readFrames(buffer, BUFFER_SIZE)
+                    if (framesRead == 0) {
+                        break
+                    }
+                    // 最大音量を取得
+                    for (s in 0 until framesRead * numChannels) {
+                        val v = abs(buffer[s])
+                        if (v > max) max = v
+                    }
+                    val sMax = max.coerceAtMost(Short.MAX_VALUE.toInt()).toShort()
+                    outputBuffer[outputBufferIndex++] = sMax
+                }
+                // Close the wavFile
+                wavFile.close()
+                // short 配列を byte 配列に変換してファイル書き込み
+                val byteBuffer: ByteBuffer = ByteBuffer.allocate(outputBuffer.size * 2)
+                byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+                byteBuffer.asShortBuffer().put(outputBuffer)
+                val bytes: ByteArray = byteBuffer.array()
+                val output: OutputStream = FileOutputStream(tempWaveFormFile)
+                output.write(bytes)
                 output.close()
                 callbackContext.success("file://" + tempWaveFormFile.absolutePath)
-            }
-            catch (e: java.lang.Exception) {
+            } catch (e: java.lang.Exception) {
+                callbackContext.error("波形の取得に失敗しました。\n$e")
                 e.printStackTrace()
             }
-        }
-
+        })
         return true
     }
-    // recordig file があるのかどうか？
+    // recording file があるのかどうか？
     private fun hasRecordedFile(callbackContext: CallbackContext): Boolean {
         recordedFile?.let {
             val p = PluginResult(PluginResult.Status.OK,  it.exists())
@@ -597,7 +611,7 @@ class CDVRoomRecording : CordovaPlugin() {
     private fun removeRecordedFile(callbackContext: CallbackContext): Boolean {
         recordedFile?.let {
             if (it.exists()) {
-                 it.delete()
+                it.delete()
             }
             callbackContext.success()
         }
@@ -690,7 +704,7 @@ class CDVRoomRecording : CordovaPlugin() {
     private fun checkSelfPermission(permission: String, requestCode: Int): Boolean {
         Log.i(TAG, "checkSelfPermission $permission $requestCode")
         return ContextCompat.checkSelfPermission(cordova.context,
-                        permission) == PackageManager.PERMISSION_GRANTED
+                permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun getMicPermission(callbackContext: CallbackContext): Boolean {
