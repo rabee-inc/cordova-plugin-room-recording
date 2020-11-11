@@ -3,6 +3,11 @@ package jp.rabee
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.arthenica.mobileffmpeg.Config
+import com.arthenica.mobileffmpeg.Config.RETURN_CODE_CANCEL
+import com.arthenica.mobileffmpeg.ExecuteCallback
+import com.arthenica.mobileffmpeg.FFmpeg
+import org.apache.cordova.*
 import com.otaliastudios.transcoder.Transcoder
 import com.otaliastudios.transcoder.TranscoderListener
 import com.otaliastudios.transcoder.engine.TrackType
@@ -11,23 +16,20 @@ import com.otaliastudios.transcoder.strategy.DefaultAudioStrategy
 import io.agora.rtc.Constants
 import io.agora.rtc.IRtcEngineEventHandler
 import io.agora.rtc.RtcEngine
-import nl.bravobit.ffmpeg.ExecuteBinaryResponseHandler
-import nl.bravobit.ffmpeg.FFmpeg
-import org.apache.cordova.*
+import jp.rabee.recorder.WavFile
+import jp.rabee.recorder.WavFileException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
+import java.io.OutputStream
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
-import jp.rabee.recorder.WavFile
-import jp.rabee.recorder.WavFileException
-import java.io.FileOutputStream
-import java.io.OutputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -411,29 +413,10 @@ class CDVRoomRecording : CordovaPlugin() {
         commands.add("-t")
         commands.add(timeFormatted)
         commands.add(outputFile.absolutePath)
-        // ffmpeg
-        val ffmpeg = FFmpeg.getInstance(cordova.context)
-        val command = commands.toTypedArray()
-        if (ffmpeg.isSupported) {
-            ffmpeg.execute(command, object: ExecuteBinaryResponseHandler() {
-                override fun onStart() {
-                    super.onStart()
-                    LOG.v(TAG, "start")
-                }
-                override fun onProgress(message: String?) {
-                    super.onProgress(message)
-                    LOG.v(TAG, message)
-                }
-                override fun onFailure(message: String?) {
-                    super.onFailure(message)
-                    LOG.v(TAG, message)
-                }
-                override fun onSuccess(message: String?) {
-                    super.onSuccess(message)
-                    LOG.v(TAG, message)
-                }
-                override fun onFinish() {
-                    super.onFinish()
+
+        FFmpeg.executeAsync(commands.toTypedArray(), ExecuteCallback { executionId, returnCode ->
+            when (returnCode) {
+                Config.RETURN_CODE_SUCCESS -> {
                     // file の移管
                     if (inputFile.exists()) {
                         inputFile.delete()
@@ -444,12 +427,17 @@ class CDVRoomRecording : CordovaPlugin() {
                     val data = JSONObject()
                     data.put("absolute_path", "file://" + newRecordedFile.absolutePath)
 
-
                     val r = PluginResult(PluginResult.Status.OK, data)
                     callbackContext.sendPluginResult(r)
                 }
-            })
-        }
+                Config.RETURN_CODE_CANCEL -> {
+                    LOG.v(TAG, "Async command execution cancelled by user.")
+                }
+                else -> {
+                    LOG.v(TAG, String.format("Async command execution failed with returnCode=%d.", returnCode))
+                }
+            }
+        })
         return true
     }
     // recorded file へのパスを返す
@@ -769,27 +757,9 @@ class CDVRoomRecording : CordovaPlugin() {
         // コマンドの連結
         val command = commands.toTypedArray()
 
-        val ffmpeg = FFmpeg.getInstance(cordova.context)
-        if (ffmpeg.isSupported) {
-            ffmpeg.execute(command, object: ExecuteBinaryResponseHandler() {
-                override fun onStart() {
-                    super.onStart()
-                    LOG.v(TAG, "start")
-                }
-                override fun onProgress(message: String?) {
-                    super.onProgress(message)
-                    LOG.v(TAG, message)
-                }
-                override fun onFailure(message: String?) {
-                    super.onFailure(message)
-                    LOG.v(TAG, message)
-                }
-                override fun onSuccess(message: String?) {
-                    super.onSuccess(message)
-                    LOG.v(TAG, message)
-                }
-                override fun onFinish() {
-                    super.onFinish()
+        FFmpeg.executeAsync(commands.toTypedArray(), ExecuteCallback { executionId, returnCode ->
+            when (returnCode) {
+                Config.RETURN_CODE_SUCCESS -> {
                     if (recordedFile.exists()) {
                         recordedFile.delete()
                     }
@@ -802,8 +772,14 @@ class CDVRoomRecording : CordovaPlugin() {
                     val r = PluginResult(PluginResult.Status.OK, true)
                     callbackContext.sendPluginResult(r)
                 }
-            })
-        }
+                Config.RETURN_CODE_CANCEL -> {
+                    LOG.v(TAG, "Async command execution cancelled by user.")
+                }
+                else -> {
+                    LOG.v(TAG, String.format("Async command execution failed with returnCode=%d.", returnCode))
+                }
+            }
+        })
 
 
     }

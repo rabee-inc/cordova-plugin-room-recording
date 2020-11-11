@@ -29,6 +29,9 @@
       <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
       <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     </config-file>
+    
+    <!-- ffmpeg -->
+    <framework src="com.arthenica:mobile-ffmpeg-full:4.4" />
     <!-- soruce -->
     <source-file src="src/android/CDVRoomRecording.kt" target-dir="app/src/main/kotlin/jp/rabee"/>
 
