@@ -117,14 +117,14 @@ class RoomRecording {
     setMicEnable(params) {
         return this.createAction('setMicEnable', params)
     };
-    toggleMic() {
+    toggleMic(params) {
         return this.createAction('toggleMicEnable', params)
     };
     // speaker 操作
     setSpeakerEnable(params) {
         return this.createAction('setSpeakerEnable', params)
     };
-    toggleSpeakerEnable() {
+    toggleSpeakerEnable(params) {
         return this.createAction('toggleSpeakerEnable', params)
     };
     // 登録関係
